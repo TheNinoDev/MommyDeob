@@ -1,24 +1,81 @@
-const BYPASS_LC_BASE = 'https://bypass.lc';
-const BYPASS_LC_SESSION = `${BYPASS_LC_BASE}/api/session`;
-const BYPASS_LC_RESOLVE = `${BYPASS_LC_BASE}/api/resolve`;
+const BYPASS_LC_PAID_API = 'https://bypass.lc/api/bypass';
+const BYPASS_LC_FREE_SESSION = 'https://bypass.lc/api/session';
+const BYPASS_LC_FREE_RESOLVE = 'https://bypass.lc/api/resolve';
 const BYPASS_CITY_BASE = 'https://bypass.city';
-
-let bypassLcSessionToken = null;
-let sessionExpiresAt = 0;
+const BYPASS_LINKS_URL = 'https://bypass-links.com/';
 
 /**
- * Get a fresh session token from bypass.lc free browser flow.
+ * Bypass an ad-link URL using free/cheap methods.
+ *
+ * Methods tried (in order):
+ *  1. bypass.lc PAID API (POST /api/bypass, Bearer token) - No captcha, ~$0.80/1000 requests
+ *     Requires BYPASS_LC_API_KEY in .env
+ *  2. bypass.lc FREE flow (GET /api/session -> POST /api/resolve)
+ *     Returns session token but /api/resolve requires a Cloudflare Turnstile token
+ *     which cannot be obtained without solving bypass.lc's own Cloudflare check.
+ *     No free open-source Node.js Turnstile solver exists without a headless browser
+ *     or paid API.
+ *  3. bypass.city - Frontend-only React app, requires manual interaction
+ *  4. Manual fallback links for user to complete bypass themselves
+ *
+ * No puppeteer/headless browser is used - stays lightweight for Pterodactyl.
  */
-async function getBypassLcSession() {
-  const now = Date.now();
-  if (bypassLcSessionToken && now < sessionExpiresAt) {
-    return bypassLcSessionToken;
+async function bypassUrl(url, options = {}) {
+  const { apiKey } = options;
+
+  // 1. Try bypass.lc paid API (if API key configured)
+  if (apiKey && apiKey.trim() !== '') {
+    try {
+      const res = await fetch(BYPASS_LC_PAID_API, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey.trim()}`,
+          'Content-Type': 'application/json',
+          'User-Agent': 'Mozilla/5.0 MommyDeob/2.0'
+        },
+        body: JSON.stringify({ url })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.status === 'success' && data.result) {
+        return {
+          success: true,
+          result: data.result,
+          provider: data.provider || 'bypass.lc',
+          cached: !!data.cached,
+          method: 'bypass.lc paid API'
+        };
+      }
+      // If paid API fails, fall through to free methods
+    } catch (_) {
+      // Fall through
+    }
   }
 
+  // 2. Try bypass.lc free session (gets token but resolve needs Turnstile)
+  const sessionResult = await tryBypassLcFreeSession(url);
+  if (sessionResult.success) return sessionResult;
+
+  // 3. Try bypass.city (frontend only, may need manual captcha)
+  const cityResult = tryBypassCity(url);
+  if (cityResult.success) return cityResult;
+
+  // 4. All automated methods failed - return manual bypass URLs
+  return {
+    success: false,
+    reason: 'Automated bypass unavailable. bypass.lc free flow requires a Cloudflare Turnstile token (no free open-source Node.js solver exists without a headless browser or paid API). bypass.city requires manual interaction.',
+    bypassCityUrl: `${BYPASS_CITY_BASE}/bypass?bypass=${encodeURIComponent(url)}`,
+    bypassLcUrl: 'https://bypass.lc/',
+    bypassLinksUrl: BYPASS_LINKS_URL,
+    method: 'manual',
+    suggestion: 'Get a bypass.lc API key and set BYPASS_LC_API_KEY in .env for fully automated bypass, or click the buttons below to complete manually.'
+  };
+}
+
+async function tryBypassLcFreeSession(url) {
   try {
-    const res = await fetch(BYPASS_LC_SESSION, {
+    const res = await fetch(BYPASS_LC_FREE_SESSION, {
       method: 'GET',
-      credentials: 'include',
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
         'Accept': 'application/json',
@@ -27,195 +84,32 @@ async function getBypassLcSession() {
     });
 
     if (!res.ok) {
-      return null;
+      return { success: false, reason: `bypass.lc session HTTP ${res.status}` };
     }
 
     const data = await res.json();
-    if (data && data.session) {
-      bypassLcSessionToken = data.session;
-      sessionExpiresAt = now + 10 * 60 * 1000; // 10 min TTL
-      return bypassLcSessionToken;
-    }
     if (data && data.token) {
-      bypassLcSessionToken = data.token;
-      sessionExpiresAt = now + 10 * 60 * 1000;
-      return bypassLcSessionToken;
-    }
-  } catch (_) {
-    // session endpoint unavailable
-  }
-
-  return null;
-}
-
-/**
- * Submit a link to bypass.lc free resolve endpoint.
- * turnstileToken is optional - Cloudflare Turnstile may be required but we try without first.
- */
-async function tryBypassLcFree(url) {
-  const sessionToken = await getBypassLcSession();
-
-  const headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
-    'Accept': 'application/json',
-    'Content-Type': 'application/json',
-    'Referer': 'https://bypass.lc/'
-  };
-
-  if (sessionToken) {
-    headers['X-Bypass-Session'] = sessionToken;
-  }
-
-  const body = JSON.stringify({ url });
-
-  try {
-    const res = await fetch(BYPASS_LC_RESOLVE, {
-      method: 'POST',
-      headers,
-      body,
-      credentials: 'include'
-    });
-
-    if (!res.ok) {
-      return { success: false, reason: `bypass.lc resolve HTTP ${res.status}` };
-    }
-
-    const data = await res.json();
-
-    if (data.status === 'success' && data.result) {
+      // We have a session token, but /api/resolve requires turnstileToken
+      // which we cannot obtain without solving Cloudflare on bypass.lc itself
       return {
-        success: true,
-        result: data.result,
-        provider: data.provider || 'bypass.lc',
-        cached: !!data.cached,
-        method: 'bypass.lc free browser flow'
+        success: false,
+        reason: 'bypass.lc free flow obtained session token but /api/resolve requires a Cloudflare Turnstile token. No free open-source solver available without headless browser.',
+        sessionToken: data.token,
+        method: 'bypass.lc free (blocked by Turnstile)'
       };
     }
-
-    if (data.error || data.message) {
-      return { success: false, reason: `bypass.lc: ${data.error || data.message}` };
-    }
-
-    // Maybe it returned a jobId to poll
-    if (data.jobId) {
-      return await pollBypassLcJob(data.jobId, sessionToken);
-    }
-
-    return { success: false, reason: 'bypass.lc returned no destination' };
+    return { success: false, reason: 'bypass.lc session returned no token' };
   } catch (err) {
-    return { success: false, reason: `bypass.lc free error: ${err.message}` };
+    return { success: false, reason: `bypass.lc session error: ${err.message}` };
   }
 }
 
-/**
- * Poll a bypass.lc job until it completes or times out.
- */
-async function pollBypassLcJob(jobId, sessionToken) {
-  const headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
-    'Accept': 'application/json',
-    'Referer': 'https://bypass.lc/'
-  };
-
-  if (sessionToken) {
-    headers['X-Bypass-Session'] = sessionToken;
-  }
-
-  const deadline = Date.now() + 30 * 1000; // 30 second max poll
-
-  while (Date.now() < deadline) {
-    try {
-      const res = await fetch(`${BYPASS_LC_BASE}/api/bypass/job/${jobId}`, {
-        method: 'GET',
-        headers,
-        credentials: 'include'
-      });
-
-      if (!res.ok) {
-        await new Promise(r => setTimeout(r, 2000));
-        continue;
-      }
-
-      const data = await res.json();
-
-      if (data.status === 'success' && data.result) {
-        return {
-          success: true,
-          result: data.result,
-          provider: data.provider || 'bypass.lc',
-          cached: !!data.cached,
-          method: 'bypass.lc free browser flow (polled)'
-        };
-      }
-
-      if (data.status === 'failed' || data.status === 'error') {
-        return { success: false, reason: `bypass.lc job failed: ${data.error || data.message || 'unknown'}` };
-      }
-
-      // Still pending, wait and poll again
-      await new Promise(r => setTimeout(r, 2000));
-    } catch (_) {
-      await new Promise(r => setTimeout(r, 2000));
-    }
-  }
-
-  return { success: false, reason: 'bypass.lc job timed out' };
-}
-
-async function tryBypassCity(url) {
-  try {
-    const bypassUrl = `${BYPASS_CITY_BASE}/bypass?bypass=${encodeURIComponent(url)}`;
-    const res = await fetch(bypassUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0 MommyDeob/2.0' },
-      redirect: 'manual'
-    });
-    const text = await res.text();
-    const redirect = res.headers.get('location');
-    if (redirect) {
-      return { success: true, result: redirect, provider: 'bypass.city', method: 'bypass.city server-side' };
-    }
-    const resultMatch = text.match(/https?:\/\/[^\s"'<>]+/g);
-    if (resultMatch) {
-      const clean = resultMatch.find(u =>
-        !u.includes('bypass.city') && !u.includes('discord') && !u.includes('google')
-      );
-      if (clean) {
-        return { success: true, result: clean, provider: 'bypass.city', method: 'bypass.city page scrape' };
-      }
-    }
-    return { success: false, reason: `bypass.city HTTP ${res.status}` };
-  } catch (err) {
-    return { success: false, reason: `bypass.city error: ${err.message}` };
-  }
-}
-
-/**
- * Bypass an ad-link URL using free methods without a heavy browser.
- *
- * Priority:
- *  1. bypass.lc free browser flow (GET /api/session -> POST /api/resolve -> GET /api/bypass/job/:id)
- *  2. bypass.city server-side (free fallback)
- *  3. Manual links if both fail
- *
- * No puppeteer/browser is used - stays lightweight for Pterodactyl hosting.
- */
-async function bypassUrl(url, options = {}) {
-  // 1. Try bypass.lc free browser flow
-  const lcResult = await tryBypassLcFree(url);
-  if (lcResult.success) return lcResult;
-
-  // 2. Try bypass.city (free fallback)
-  const cityResult = await tryBypassCity(url);
-  if (cityResult.success) return cityResult;
-
-  // 3. All automated methods failed - return manual bypass URLs
+function tryBypassCity(url) {
+  // bypass.city is a frontend React app - server-side fetch returns HTML, not a result
+  // We cannot automate it without a headless browser
   return {
     success: false,
-    reason: 'All automated bypass methods failed. The link may require manual CAPTCHA solving.',
-    bypassCityUrl: `${BYPASS_CITY_BASE}/bypass?bypass=${encodeURIComponent(url)}`,
-    bypassLinksUrl: 'https://bypass-links.com/',
-    bypassLcUrl: 'https://bypass.lc/',
-    method: 'manual'
+    reason: 'bypass.city is frontend-only and requires manual interaction in a browser.'
   };
 }
 
@@ -250,8 +144,7 @@ async function getSupportedSitesMerged() {
 module.exports = {
   bypassUrl,
   getSupportedSitesMerged,
-  getBypassLcSession,
-  BYPASS_LC_BASE,
-  BYPASS_LINKS_URL: 'https://bypass-links.com/',
+  BYPASS_LC_PAID_API,
+  BYPASS_LINKS_URL,
   BYPASS_CITY_BASE
 };
