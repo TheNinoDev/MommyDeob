@@ -18,7 +18,7 @@ const { getSupportedSummary } = require('./features/supported');
 const { resolvePastblox } = require('./features/pastblox');
 const { fetchScript, extractUrlFromLoadstring, extractLinksFromText } = require('./services/fetcher');
 const { uploadPaste } = require('./services/paste');
-const { getSupportedSites, buildBypassUrl, tryServerSideBypass } = require('./services/bypassCity');
+const { bypassUrl, getSupportedSitesMerged } = require('./services/bypassService');
 const { keyManager } = require('./services/keyManager');
 const {
   container,
@@ -379,44 +379,62 @@ async function handleBypassCommand(message) {
   try {
     await message.channel.sendTyping();
 
-    const supportedText = await getSupportedSites();
-    const bypassUrl = buildBypassUrl(urlArg);
+    const result = await bypassUrl(urlArg);
 
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setLabel('Open bypass.city')
-        .setStyle(ButtonStyle.Link)
-        .setURL(bypassUrl)
-    );
+    if (result.success) {
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setLabel('Open Final Destination')
+          .setStyle(ButtonStyle.Link)
+          .setURL(result.result)
+      );
 
-    let note = 'bypass.city is primarily browser-based - open the link above to solve any captcha.';
-    try {
-      const ss = await tryServerSideBypass(urlArg);
-      if (ss.redirect) {
-        note = `Server-side redirect detected: ${ss.redirect}`;
-      } else if (ss.status === 200) {
-        note = 'Server-side bypass attempt returned a page. Open the link to confirm completion.';
-      }
-    } catch (_) {}
+      const comp = container(
+        'Link Bypassed Successfully',
+        [
+          `Target URL: ${urlArg}`,
+          `Bypassed via: ${result.provider}`,
+          `Final destination: ${result.result}`,
+          '',
+          'Click below to open the unlocked destination.'
+        ].join('\n'),
+        SUCCESS_COLOR,
+        `[ ${result.cached ? 'cached result' : 'fresh bypass' } ]`
+      );
 
-    const comp = container(
-      'Link Bypass Request',
-      [
-        `Target URL: ${urlArg}`,
-        '',
-        note,
-        '',
-        'Click below to open bypass.city and complete the bypass manually if captcha appears.',
-        '',
-        'Supported sites include: Linkvertise, pastebin, tinyurl, bit.ly, rentry, jnkies, and many more.'
-      ].join('\n'),
-      ACCENT_COLOR,
-      '[ bypass.city integration ]'
-    );
+      await message.reply({ components: [comp, row], flags: V2_FLAG });
+    } else {
+      const bypassCityUrl = `https://bypass.city/bypass?bypass=${encodeURIComponent(urlArg)}`;
+      const bypassLcUrl = 'https://bypass.lc/';
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setLabel('Open bypass.city')
+          .setStyle(ButtonStyle.Link)
+          .setURL(bypassCityUrl),
+        new ButtonBuilder()
+          .setLabel('Open bypass.lc')
+          .setStyle(ButtonStyle.Link)
+          .setURL(bypassLcUrl)
+      );
 
-    await message.reply({ components: [comp, row], flags: V2_FLAG });
+      const comp = container(
+        'Bypass Requires Manual Completion',
+        [
+          `Target URL: ${urlArg}`,
+          '',
+          result.reason,
+          '',
+          'Headless browser could not solve the CAPTCHA automatically.',
+          'Click below to complete the bypass manually:'
+        ].join('\n'),
+        WARN_COLOR,
+        '[ manual captcha required ]'
+      );
+
+      await message.reply({ components: [comp, row], flags: V2_FLAG });
+    }
   } catch (err) {
-    await replyError(message, `Bypass lookup failed: ${err.message}`);
+    await replyError(message, `Bypass failed: ${err.message}`);
   }
 }
 
@@ -557,11 +575,18 @@ async function handlePasteCommand(message) {
 
 // Handler for .supported
 async function handleSupportedCommand(message) {
+  const bypassSites = await getSupportedSitesMerged();
   const comp = container(
-    'Supported Obfuscator Matrix',
-    getSupportedSummary(),
+    'Supported Systems Matrix',
+    [
+      '**🔗 Bypass Sites (bypass.city + bypass.lc merged):**',
+      bypassSites.map(s => `• ${s}`).join('\n'),
+      '',
+      '**🛡️ Obfuscator Engines:**',
+      getSupportedSummary()
+    ].join('\n'),
     ACCENT_COLOR,
-    '[ devirtualizer engines ]'
+    '[ merged sources ]'
   );
   await message.reply({ components: [comp], flags: V2_FLAG });
 }
@@ -780,7 +805,19 @@ async function handleSlash(interaction) {
   }
 
   if (commandName === 'supported') {
-    const comp = container('Supported Obfuscator Matrix', getSupportedSummary(), ACCENT_COLOR, '[ devirtualizer engines ]');
+    const bypassSites = await getSupportedSitesMerged();
+    const comp = container(
+      'Supported Systems Matrix',
+      [
+        '**🔗 Bypass Sites (bypass.city + bypass.lc merged):**',
+        bypassSites.map(s => `• ${s}`).join('\n'),
+        '',
+        '**🛡️ Obfuscator Engines:**',
+        getSupportedSummary()
+      ].join('\n'),
+      ACCENT_COLOR,
+      '[ merged sources ]'
+    );
     await interaction.reply({ components: [comp], flags: V2_FLAG });
     return;
   }
@@ -886,12 +923,33 @@ async function handleSlash(interaction) {
       );
       await interaction.editReply({ components: [comp], files: [att], flags: V2_FLAG });
     } else if (commandName === 'bypass') {
-      const bypassUrl = buildBypassUrl(code);
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setLabel('Open bypass.city').setStyle(ButtonStyle.Link).setURL(bypassUrl)
-      );
-      const comp = container('Link Bypass Request', `Target URL: ${code}\nOpen bypass.city above to complete captcha and get the direct link.`, ACCENT_COLOR, '[ bypass.city ]');
-      await interaction.editReply({ components: [comp, row], flags: V2_FLAG });
+      const result = await bypassUrl(code);
+      if (result.success) {
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setLabel('Open Final Destination').setStyle(ButtonStyle.Link).setURL(result.result)
+        );
+        const comp = container(
+          'Link Bypassed Successfully',
+          `Target URL: ${code}\nBypassed via: ${result.provider}\nFinal destination: ${result.result}`,
+          SUCCESS_COLOR,
+          `[ ${result.cached ? 'cached result' : 'fresh bypass' } ]`
+        );
+        await interaction.editReply({ components: [comp, row], flags: V2_FLAG });
+      } else {
+        const bypassCityUrl = `https://bypass.city/bypass?bypass=${encodeURIComponent(code)}`;
+        const bypassLcUrl = 'https://bypass.lc/';
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setLabel('Open bypass.city').setStyle(ButtonStyle.Link).setURL(bypassCityUrl),
+          new ButtonBuilder().setLabel('Open bypass.lc').setStyle(ButtonStyle.Link).setURL(bypassLcUrl)
+        );
+        const comp = container(
+          'Bypass Requires Manual Completion',
+          `Target URL: ${code}\n\n${result.reason}\n\nHeadless browser could not solve the CAPTCHA automatically. Click below to complete the bypass manually:`,
+          WARN_COLOR,
+          '[ manual captcha required ]'
+        );
+        await interaction.editReply({ components: [comp, row], flags: V2_FLAG });
+      }
     } else if (commandName === 'beautify') {
       const b = beautifyLua(code);
       if (b.length <= MAX_DISCORD_TEXT) {

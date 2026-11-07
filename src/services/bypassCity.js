@@ -1,11 +1,10 @@
+const { getSupportedSitesMerged, buildBypassUrl: _unused, tryServerSideBypass: _unused2 } = require('./bypassService');
+
 const BYPASS_CITY_BASE = 'https://bypass.city';
 
 async function getSupportedSites() {
-  const res = await fetch(`${BYPASS_CITY_BASE}/supported`, {
-    headers: { 'User-Agent': 'Mozilla/5.0 MommyDeob/2.0' }
-  });
-  if (!res.ok) throw new Error(`Failed to fetch bypass.city supported list (HTTP ${res.status})`);
-  return await res.text();
+  const sites = await getSupportedSitesMerged();
+  return sites.map(s => `• ${s}`).join('\n');
 }
 
 function buildBypassUrl(longUrl) {
@@ -13,8 +12,6 @@ function buildBypassUrl(longUrl) {
 }
 
 async function tryServerSideBypass(longUrl) {
-  // bypass.city is primarily a browser-based bypasser. We attempt a lightweight
-  // fetch to see if any redirect or result comes back server-side.
   try {
     const res = await fetch(buildBypassUrl(longUrl), {
       headers: { 'User-Agent': 'Mozilla/5.0 MommyDeob/2.0' },
