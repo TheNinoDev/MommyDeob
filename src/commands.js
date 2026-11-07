@@ -123,18 +123,20 @@ async function resolveScriptInput(messageOrContent) {
         code: resolved.innerCode,
         source: 'pastblox',
         name: 'pastblox_resolved.lua',
-        url: resolved.innerUrl,
+        url: resolved.innerUrl || (resolved.config ? resolved.config.keyUrl : null),
         outerUrl: resolved.outerUrl,
         innerLoadstringUrls: resolved.innerLoadstringUrls,
         detected: resolved.detected,
-        deobfResult: resolved.deobf
+        deobfResult: resolved.deobf,
+        config: resolved.config
       };
     }
     return {
       code: resolved.outerCode,
       source: 'pastblox_raw',
       name: 'pasteblox.lua',
-      url: resolved.outerUrl
+      url: resolved.outerUrl,
+      config: resolved.config
     };
   }
 
@@ -389,20 +391,40 @@ async function handleBypassCommand(message) {
           .setURL(result.result)
       );
 
+      // Check if destination is a script (or pastblox/raw script) and fetch to attach as .lua
+      let scriptFile = null;
+      let fetchedScript = null;
+      try {
+        const dest = result.result;
+        if (/pasteblox\.com|raw\.githubusercontent\.com|pastebin\.com|rentry\.co|hastebin\.com|\.lua(\?|$)/i.test(dest)) {
+          fetchedScript = await resolveScriptInput(dest);
+          if (fetchedScript && fetchedScript.code) {
+            scriptFile = new AttachmentBuilder(Buffer.from(fetchedScript.code, 'utf8'), {
+              name: fetchedScript.name || 'bypassed_script.lua'
+            });
+          }
+        }
+      } catch (_) {
+        // Fall back to link button
+      }
+
       const comp = container(
         'Link Bypassed Successfully',
         [
           `Target URL: ${urlArg}`,
           `Bypassed via: ${result.provider}`,
           `Final destination: ${result.result}`,
+          scriptFile ? 'Fetched script content and attached as .lua file below.' : '',
           '',
           'Click below to open the unlocked destination.'
-        ].join('\n'),
+        ].filter(Boolean).join('\n'),
         SUCCESS_COLOR,
-        `[ ${result.cached ? 'cached result' : 'fresh bypass' } ]`
+        `[ ${result.cached ? 'cached result' : 'fresh bypass'}${scriptFile ? ' - file attached' : ''} ]`
       );
 
-      await message.reply({ components: [comp, row], flags: V2_FLAG });
+      const replyOpts = { components: [comp, row], flags: V2_FLAG };
+      if (scriptFile) replyOpts.files = [scriptFile];
+      await message.reply(replyOpts);
     } else {
       const bypassCityUrl = `https://bypass.city/bypass?bypass=${encodeURIComponent(urlArg)}`;
       const row = new ActionRowBuilder().addComponents(
@@ -455,12 +477,12 @@ async function handleRenameCommand(message) {
   }
 
   const header = `Replaced **${res.count}** disgusting unreadable identifiers with clean sequential names (\`var_1\`, \`var_2\`). You are welcome.`;
+  const file = new AttachmentBuilder(Buffer.from(res.code, 'utf8'), { name: 'renamed.lua' });
 
   if (res.code.length <= MAX_DISCORD_TEXT) {
-    const comp = container('Identifier Renamer', `${header}\n\`\`\`lua\n${res.code}\n\`\`\``, SUCCESS_COLOR, '[ cleaned ]');
-    await message.reply({ components: [comp], flags: V2_FLAG });
+    const comp = container('Identifier Renamer', `${header}\n\`\`\`lua\n${res.code}\n\`\`\``, SUCCESS_COLOR, '[ cleaned - file attached ]');
+    await message.reply({ components: [comp], files: [file], flags: V2_FLAG });
   } else {
-    const file = new AttachmentBuilder(Buffer.from(res.code, 'utf8'), { name: 'renamed.lua' });
     const comp = container('Identifier Renamer', `${header} Result is attached as a file.`, SUCCESS_COLOR, '[ cleaned - file attached ]');
     await message.reply({ components: [comp], files: [file], flags: V2_FLAG });
   }
@@ -482,12 +504,12 @@ async function handleBeautifyCommand(message) {
   }
 
   const formatted = beautifyLua(script.code);
+  const file = new AttachmentBuilder(Buffer.from(formatted, 'utf8'), { name: 'beautified.lua' });
 
   if (formatted.length <= MAX_DISCORD_TEXT) {
-    const comp = container('Lua Beautifier', `\`\`\`lua\n${formatted}\n\`\`\``, SUCCESS_COLOR, '[ formatted ]');
-    await message.reply({ components: [comp], flags: V2_FLAG });
+    const comp = container('Lua Beautifier', `\`\`\`lua\n${formatted}\n\`\`\``, SUCCESS_COLOR, '[ formatted - file attached ]');
+    await message.reply({ components: [comp], files: [file], flags: V2_FLAG });
   } else {
-    const file = new AttachmentBuilder(Buffer.from(formatted, 'utf8'), { name: 'beautified.lua' });
     const comp = container('Lua Beautifier', 'Formatted code attached below.', SUCCESS_COLOR, '[ formatted - file attached ]');
     await message.reply({ components: [comp], files: [file], flags: V2_FLAG });
   }
@@ -509,12 +531,12 @@ async function handleMinifyCommand(message) {
   }
 
   const minified = minifyLua(script.code);
+  const file = new AttachmentBuilder(Buffer.from(minified, 'utf8'), { name: 'minified.lua' });
 
   if (minified.length <= MAX_DISCORD_TEXT) {
-    const comp = container('Lua Minifier', `\`\`\`lua\n${minified}\n\`\`\``, SUCCESS_COLOR, '[ minified ]');
-    await message.reply({ components: [comp], flags: V2_FLAG });
+    const comp = container('Lua Minifier', `\`\`\`lua\n${minified}\n\`\`\``, SUCCESS_COLOR, '[ minified - file attached ]');
+    await message.reply({ components: [comp], files: [file], flags: V2_FLAG });
   } else {
-    const file = new AttachmentBuilder(Buffer.from(minified, 'utf8'), { name: 'minified.lua' });
     const comp = container('Lua Minifier', `Compressed down to ${minified.length.toLocaleString()} characters. File attached.`, SUCCESS_COLOR, '[ minified - file attached ]');
     await message.reply({ components: [comp], files: [file], flags: V2_FLAG });
   }
@@ -945,26 +967,26 @@ async function handleSlash(interaction) {
       }
     } else if (commandName === 'beautify') {
       const b = beautifyLua(code);
+      const att = new AttachmentBuilder(Buffer.from(b, 'utf8'), { name: 'beautified.lua' });
       if (b.length <= MAX_DISCORD_TEXT) {
-        await interaction.editReply({ components: [container('Beautified Code', `\`\`\`lua\n${b}\n\`\`\``, SUCCESS_COLOR, '[ formatted ]')], flags: V2_FLAG });
+        await interaction.editReply({ components: [container('Beautified Code', `\`\`\`lua\n${b}\n\`\`\``, SUCCESS_COLOR, '[ formatted - file attached ]')], files: [att], flags: V2_FLAG });
       } else {
-        const att = new AttachmentBuilder(Buffer.from(b, 'utf8'), { name: 'beautified.lua' });
         await interaction.editReply({ components: [container('Beautified Code', 'Attached as file.', SUCCESS_COLOR, '[ formatted - file attached ]')], files: [att], flags: V2_FLAG });
       }
     } else if (commandName === 'minify') {
       const m = minifyLua(code);
+      const att = new AttachmentBuilder(Buffer.from(m, 'utf8'), { name: 'minified.lua' });
       if (m.length <= MAX_DISCORD_TEXT) {
-        await interaction.editReply({ components: [container('Minified Code', `\`\`\`lua\n${m}\n\`\`\``, SUCCESS_COLOR, '[ minified ]')], flags: V2_FLAG });
+        await interaction.editReply({ components: [container('Minified Code', `\`\`\`lua\n${m}\n\`\`\``, SUCCESS_COLOR, '[ minified - file attached ]')], files: [att], flags: V2_FLAG });
       } else {
-        const att = new AttachmentBuilder(Buffer.from(m, 'utf8'), { name: 'minified.lua' });
         await interaction.editReply({ components: [container('Minified Code', 'Attached as file.', SUCCESS_COLOR, '[ minified - file attached ]')], files: [att], flags: V2_FLAG });
       }
     } else if (commandName === 'rename') {
       const r = renameIdentifiers(code);
+      const att = new AttachmentBuilder(Buffer.from(r.code, 'utf8'), { name: 'renamed.lua' });
       if (r.code.length <= MAX_DISCORD_TEXT) {
-        await interaction.editReply({ components: [container('Renamed Variables', `\`\`\`lua\n${r.code}\n\`\`\``, SUCCESS_COLOR, '[ renamed ]')], flags: V2_FLAG });
+        await interaction.editReply({ components: [container('Renamed Variables', `\`\`\`lua\n${r.code}\n\`\`\``, SUCCESS_COLOR, '[ renamed - file attached ]')], files: [att], flags: V2_FLAG });
       } else {
-        const att = new AttachmentBuilder(Buffer.from(r.code, 'utf8'), { name: 'renamed.lua' });
         await interaction.editReply({ components: [container('Renamed Variables', 'Attached as file.', SUCCESS_COLOR, '[ renamed - file attached ]')], files: [att], flags: V2_FLAG });
       }
     } else if (commandName === 'paste') {

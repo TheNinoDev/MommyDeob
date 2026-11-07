@@ -1,4 +1,4 @@
-const LINKVERTISE_API_ENDPOINT = 'https://publisher.linkvertise.com/api/v1/anti_bypassing';
+const LINKVERTISE_API_ENDPOINT = 'https://publisher.linkvertise.com/api/v1/anti-bypassing';
 
 async function verifyLinkvertiseHash(hash, token = process.env.LINKVERTISE_ANTI_BYPASS_TOKEN) {
   if (!hash || !hash.trim()) {

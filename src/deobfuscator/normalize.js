@@ -1,4 +1,4 @@
-const COMPOUND = ['+=', '-=', '*=', '/=', '%=', '..='];
+const COMPOUND = ['+=', '-=', '*=', '/=', '%=', '..=', '^='];
 
 function findLhsStart(content, operatorIndex) {
   let idx = operatorIndex - 1;

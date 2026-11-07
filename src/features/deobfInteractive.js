@@ -19,7 +19,7 @@ function cleanOldSessions() {
     }
   }
 }
-setInterval(cleanOldSessions, 60 * 1000);
+setInterval(cleanOldSessions, 60 * 1000).unref();
 
 function createDeobfuscatePanel(code, originalName = 'script.lua') {
   const sessionId = crypto.randomBytes(6).toString('hex');
@@ -156,22 +156,23 @@ async function handleDeobSelectMenu(interaction) {
       'Deobfuscated successfully. Cry about it.'
     ].join('\n');
 
-    // Always return large results as .lua file
-    if (resultOutput.length <= 1800) {
+    const attachment = new AttachmentBuilder(Buffer.from(resultOutput, 'utf8'), {
+      name: 'deobfuscated.lua'
+    });
+
+    // Always attach .lua file attachment per bot specification
+    if (resultOutput.length <= 1500) {
       const resultComp = container(
         'Script Shredded',
         `${header}\n\`\`\`lua\n${resultOutput}\n\`\`\``,
         SUCCESS_COLOR,
-        '[ devirtualized ]'
+        '[ devirtualized - file attached ]'
       );
-      await interaction.editReply({ components: [resultComp], flags: V2_FLAG });
+      await interaction.editReply({ components: [resultComp], files: [attachment], flags: V2_FLAG });
     } else {
-      const attachment = new AttachmentBuilder(Buffer.from(resultOutput, 'utf8'), {
-        name: 'deobfuscated.lua'
-      });
       const resultComp = container(
         'Script Shredded',
-        `${header}\nOutput was too massive for your tiny screen. Attached as a .lua file below.`,
+        `${header}\nOutput was too massive for preview. Attached as a .lua file below.`,
         SUCCESS_COLOR,
         '[ devirtualized - file attached ]'
       );
