@@ -3,3 +3,5 @@ node_modules/
 *.log
 tmp/
 *.report.txt
+*.tgz
+package/
