@@ -125,7 +125,9 @@ async function resolveScriptInput(messageOrContent) {
         name: 'pastblox_resolved.lua',
         url: resolved.innerUrl,
         outerUrl: resolved.outerUrl,
-        innerLoadstringUrls: resolved.innerLoadstringUrls
+        innerLoadstringUrls: resolved.innerLoadstringUrls,
+        detected: resolved.detected,
+        deobfResult: resolved.deobf
       };
     }
     return {
@@ -223,24 +225,15 @@ async function handleDumpCommand(message) {
     ...res.trace
   ].join('\n');
 
-  if (formattedOutput.length <= MAX_DISCORD_TEXT) {
-    const comp = container(
-      'Environment Dump Result',
-      `\`\`\`lua\n${formattedOutput}\n\`\`\``,
-      SUCCESS_COLOR,
-      '[ memory stripped ]'
-    );
-    await message.reply({ components: [comp], flags: V2_FLAG });
-  } else {
-    const file = new AttachmentBuilder(Buffer.from(formattedOutput, 'utf8'), { name: 'dump.lua' });
-    const comp = container(
-      'Environment Dump Result',
-      `Ripped ${res.totalLogs} runtime logs and ${res.accessed.length} globals. Output file attached.`,
-      SUCCESS_COLOR,
-      '[ memory stripped - file attached ]'
-    );
-    await message.reply({ components: [comp], files: [file], flags: V2_FLAG });
-  }
+  // Always return as file for dumps
+  const file = new AttachmentBuilder(Buffer.from(formattedOutput, 'utf8'), { name: 'dump.lua' });
+  const comp = container(
+    'Environment Dump Result',
+    `Ripped ${res.totalLogs} runtime logs and ${res.accessed.length} globals. Full dump attached as .lua file.`,
+    SUCCESS_COLOR,
+    '[ memory stripped - file attached ]'
+  );
+  await message.reply({ components: [comp], files: [file], flags: V2_FLAG });
 }
 
 // Handler for .spy
@@ -352,19 +345,21 @@ async function handleGetCommand(message) {
     await message.channel.sendTyping();
     const fetched = await resolveScriptInput({ content: urlArg });
 
+    // Always return fetched scripts as .lua file attachment
+    const file = new AttachmentBuilder(Buffer.from(fetched.code, 'utf8'), { name: fetched.name || 'fetched.lua' });
     const comp = container(
       'Script Downloaded',
       [
         `Source: ${fetched.url || fetched.originalUrl || 'resolved'}`,
         `Payload: ${fetched.code.length.toLocaleString()} bytes`,
         '',
-        'Target captured. Run `.deobf`, `.dump`, or `.spy` to rip it apart.'
+        'Target captured and saved as .lua file below.',
+        'Run `.deobf`, `.dump`, or `.spy` on the attached file to rip it apart.'
       ].join('\n'),
       SUCCESS_COLOR,
-      '[ fetch complete ]'
+      '[ fetch complete - .lua file attached ]'
     );
 
-    const file = new AttachmentBuilder(Buffer.from(fetched.code, 'utf8'), { name: fetched.name || 'fetched.lua' });
     await message.reply({ components: [comp], files: [file], flags: V2_FLAG });
   } catch (err) {
     await replyError(message, `Failed downloading script: ${err.message}`);
@@ -873,25 +868,22 @@ async function handleSlash(interaction) {
     } else if (commandName === 'dump') {
       const res = dumpScript(code);
       const out = `-- MommyDeob Dump\n-- Total Logs: ${res.totalLogs}\n\n${res.trace.join('\n')}`;
-      if (out.length <= MAX_DISCORD_TEXT) {
-        await interaction.editReply({ components: [container('Environment Dump', `\`\`\`lua\n${out}\n\`\`\``, SUCCESS_COLOR, '[ dump complete ]')], flags: V2_FLAG });
-      } else {
-        const att = new AttachmentBuilder(Buffer.from(out, 'utf8'), { name: 'dump.lua' });
-        await interaction.editReply({ components: [container('Environment Dump', 'Output file attached below.', SUCCESS_COLOR, '[ dump file attached ]')], files: [att], flags: V2_FLAG });
-      }
+      const att = new AttachmentBuilder(Buffer.from(out, 'utf8'), { name: 'dump.lua' });
+      const comp = container('Environment Dump', `Ripped ${res.totalLogs} logs. Full dump attached as .lua file.`, SUCCESS_COLOR, '[ dump file attached ]');
+      await interaction.editReply({ components: [comp], files: [att], flags: V2_FLAG });
     } else if (commandName === 'spy') {
       const res = spyScript(code);
       const summary = `Webhooks: ${res.webhooks.length}\nEndpoints: ${res.urls.length}\nHTTP Calls: ${res.httpRequests.length}`;
       await interaction.editReply({ components: [container('Network Spy Report', summary, ACCENT_COLOR, '[ traffic captured ]')], flags: V2_FLAG });
     } else if (commandName === 'get') {
       const fetched = await resolveScriptInput(code);
+      const att = new AttachmentBuilder(Buffer.from(fetched.code, 'utf8'), { name: fetched.name || 'fetched.lua' });
       const comp = container(
         'Script Downloaded',
         `Source: ${fetched.url || code}\nPayload: ${fetched.code.length.toLocaleString()} bytes`,
         SUCCESS_COLOR,
-        '[ fetch complete ]'
+        '[ fetch complete - .lua file attached ]'
       );
-      const att = new AttachmentBuilder(Buffer.from(fetched.code, 'utf8'), { name: fetched.name || 'fetched.lua' });
       await interaction.editReply({ components: [comp], files: [att], flags: V2_FLAG });
     } else if (commandName === 'bypass') {
       const bypassUrl = buildBypassUrl(code);

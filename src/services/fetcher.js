@@ -45,11 +45,14 @@ function extractUrlFromLoadstring(code) {
 async function fetchScript(inputUrl, maxBytes = 8_000_000) {
   const directUrl = normalizeScriptUrl(inputUrl);
 
-  const res = await fetch(directUrl, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) MommyDeob/2.0'
-    }
-  });
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
+    'Accept': '*/*',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Referer': 'https://jnkie.com/'
+  };
+
+  const res = await fetch(directUrl, { headers });
 
   if (!res.ok) {
     throw new Error(`Failed to fetch script from URL (HTTP ${res.status}: ${res.statusText})`);

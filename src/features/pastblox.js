@@ -1,4 +1,5 @@
 const { fetchScript, extractUrlFromLoadstring } = require('../services/fetcher');
+const { deobfuscate, detect, detectName } = require('../deobfuscator');
 
 async function resolvePastblox(inputUrl) {
   // Normalize pasteblox.com/raw/<id> URLs
@@ -30,10 +31,29 @@ async function resolvePastblox(inputUrl) {
     try {
       const inner = await fetchScript(innerUrls[0]);
       innerCode = inner.code;
+
+      // Detect obfuscator and attempt deobfuscation if supported
+      let deobfResult = null;
+      const detected = detect(innerCode);
+      if (detected !== 'unknown') {
+        try {
+          const result = await deobfuscate(innerCode);
+          deobfResult = {
+            engine: detectName(detected),
+            code: result.code,
+            report: result.report || ''
+          };
+        } catch (_) {
+          // Deobfuscation failed, keep raw innerCode
+        }
+      }
+
       resolved = {
         outerUrl: url,
         innerUrl: innerUrls[0],
-        innerCode
+        innerCode,
+        detected: detected,
+        deobf: deobfResult
       };
     } catch (_) {
       resolved = { outerUrl: url, innerUrl: innerUrls[0], innerCode: null, error: 'Could not fetch inner loadstring URL' };
