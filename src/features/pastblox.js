@@ -1,4 +1,4 @@
-const { fetchScript } = require('./fetcher');
+const { fetchScript, extractUrlFromLoadstring } = require('../services/fetcher');
 
 async function resolvePastblox(inputUrl) {
   // Normalize pasteblox.com/raw/<id> URLs
@@ -22,7 +22,6 @@ async function resolvePastblox(inputUrl) {
   }
 
   // Try to extract loadstring URL from inside the script content
-  const { extractUrlFromLoadstring } = require('./fetcher');
   const innerUrls = extractUrlFromLoadstring(code);
 
   let resolved = null;
