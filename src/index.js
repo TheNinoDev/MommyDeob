@@ -14,6 +14,7 @@ const {
   handleSpyCommand,
   handleDetectCommand,
   handleGetCommand,
+  handleBypassCommand,
   handleRenameCommand,
   handleBeautifyCommand,
   handleMinifyCommand,
@@ -102,6 +103,10 @@ client.on(Events.MessageCreate, async (message) => {
     // Script Fetcher
     else if (['get', 'g'].includes(command)) {
       await handleGetCommand(message);
+    }
+    // Link Bypass
+    else if (['bypass', 'byp', 'bypasscity'].includes(command)) {
+      await handleBypassCommand(message);
     }
     // Identifier Renamer
     else if (['rename', 'rn', 'r'].includes(command)) {

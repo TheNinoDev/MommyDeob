@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const { detect, detectName, getAllEngines } = require('../deobfuscator/detect');
 const { deobfuscateWeAreDevs } = require('../deobfuscator/wearedevs');
 const { dumpScript } = require('./dumper');
+const { extractLoadstringUrls, resolveNestedScripts } = require('../services/fetcher');
 const { container, errorContainer, replyError, V2_FLAG, SUCCESS_COLOR, ACCENT_COLOR } = require('../utils/discordComponents');
 
 const activeSessions = new Map();
@@ -27,10 +28,15 @@ function createDeobfuscatePanel(code, originalName = 'script.lua') {
   const detectedId = detect(code);
   const detectedTitle = detectName(detectedId);
 
+  const loadstrings = extractLoadstringUrls(code);
+  const pastebloxUrls = loadstrings.filter(u => /pasteblox\.com/i.test(u));
+
   activeSessions.set(sessionId, {
     code,
     detectedId,
     originalName,
+    loadstrings,
+    pastebloxUrls,
     createdAt: Date.now()
   });
 
@@ -46,6 +52,24 @@ function createDeobfuscatePanel(code, originalName = 'script.lua') {
     if (eng.id !== detectedId) {
       sortedEngines.push(eng);
     }
+  }
+
+  // Add loadstring resolver option if loadstrings found
+  if (loadstrings.length > 0) {
+    sortedEngines.push({
+      id: 'resolve_loadstrings',
+      name: 'Resolve Nested Loadstrings',
+      desc: `Fetch and extract ${loadstrings.length} embedded loadstring URL(s)`
+    });
+  }
+
+  // Add pasteblox resolver if pasteblox URLs found
+  if (pastebloxUrls.length > 0) {
+    sortedEngines.push({
+      id: 'resolve_pasteblox',
+      name: 'Resolve Pasteblox Luraph Keys',
+      desc: `Extract original loadstring from ${pastebloxUrls.length} pasteblox URL(s)`
+    });
   }
 
   sortedEngines.push({
@@ -70,11 +94,20 @@ function createDeobfuscatePanel(code, originalName = 'script.lua') {
 
   const row = new ActionRowBuilder().addComponents(selectMenu);
 
+  const extraInfo = [];
+  if (loadstrings.length > 0) {
+    extraInfo.push(`Embedded Loadstrings: ${loadstrings.length} URL(s) found`);
+  }
+  if (pastebloxUrls.length > 0) {
+    extraInfo.push(`Pasteblox URLs: ${pastebloxUrls.length} detected (Luraph key system)`);
+  }
+
   const panelContainer = container(
     'MommyDeob Target Locked',
     [
       `Target Obfuscator: **${detectedTitle}** (\`${detectedId}\`)`,
       `Script Size: ${code.length.toLocaleString()} bytes`,
+      ...(extraInfo.length ? ['', ...extraInfo] : []),
       '',
       'Ara ara... did a little skid really think this trash obfuscator would protect their code?',
       'Pick an engine from the dropdown below and watch it get shredded.'
@@ -105,7 +138,7 @@ async function handleDeobSelectMenu(interaction) {
   await interaction.deferUpdate();
 
   const chosenEngine = interaction.values[0];
-  const { code } = session;
+  const { code, loadstrings, pastebloxUrls } = session;
 
   try {
     let resultOutput = '';
@@ -128,6 +161,59 @@ async function handleDeobSelectMenu(interaction) {
         ...res.trace
       ].join('\n');
       resultEngineName = 'Universal Dumper';
+    } else if (chosenEngine === 'resolve_loadstrings') {
+      const resolved = await resolveNestedScripts(code, 2);
+      const parts = [];
+      parts.push('-- MommyDeob Nested Loadstring Resolution');
+      parts.push(`-- Found ${loadstrings.length} embedded URL(s)`);
+      parts.push('');
+
+      for (const r of resolved) {
+        parts.push(`-- === URL: ${r.url} ===`);
+        if (r.error) {
+          parts.push(`-- ERROR: ${r.error}`);
+        } else {
+          parts.push(`-- Resolved: ${r.resolvedUrl}`);
+          parts.push(`-- Size: ${r.bytes} bytes`);
+          parts.push('');
+          parts.push(r.code);
+        }
+        parts.push('');
+        parts.push('-- ' + '='.repeat(60));
+        parts.push('');
+      }
+
+      resultOutput = parts.join('\n');
+      resultEngineName = `Loadstring Resolver (${resolved.length} URL(s))`;
+    } else if (chosenEngine === 'resolve_pasteblox') {
+      const resolved = await deobfuscatePasteblox(code);
+      const parts = [];
+      parts.push('-- MommyDeob Pasteblox Luraph Key System Deobfuscation');
+      parts.push(`-- Found ${pastebloxUrls.length} pasteblox URL(s)`);
+      parts.push('');
+
+      for (const r of resolved) {
+        parts.push(`-- === Pasteblox URL: ${r.originalUrl} ===`);
+        if (r.error) {
+          parts.push(`-- ERROR: ${r.error}`);
+        } else {
+          parts.push(`-- Resolved: ${r.resolvedUrl}`);
+          parts.push(`-- Size: ${r.bytes} bytes`);
+          parts.push('-- Original loadstring content extracted below:');
+          parts.push('');
+          parts.push(r.code);
+        }
+        parts.push('');
+        parts.push('-- ' + '='.repeat(60));
+        parts.push('');
+      }
+
+      if (resolved.length === 0) {
+        parts.push('-- No pasteblox URLs found in script.');
+      }
+
+      resultOutput = parts.join('\n');
+      resultEngineName = `Pasteblox Resolver (${resolved.length} URL(s))`;
     } else {
       const res = dumpScript(code);
       resultOutput = [

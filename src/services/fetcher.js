@@ -1,3 +1,7 @@
+const LINK_REGEX = /(?:https?:\/\/)?(?:www\.)?(?:linkvertise\.com|pastebin\.com|pastefy\.app|rentry\.co|hastebin\.com|justpaste\.it|controlc\.com|bypass\.city|jnkie\.com|pasteblox\.com|raw\.githubusercontent\.com|github\.com)[^\s"'<>]+/gi;
+
+const LOADSTRING_URL_REGEX = /loadstring\s*\(\s*game\s*:\s*HttpGet\s*\(\s*["']([^"']+)["']\s*\)\s*\)\s*\(/gi;
+
 function normalizeScriptUrl(inputUrl) {
   let url = inputUrl.trim();
 
@@ -28,12 +32,22 @@ function normalizeScriptUrl(inputUrl) {
   return url;
 }
 
+function extractUrlFromLoadstring(code) {
+  LOADSTRING_URL_REGEX.lastIndex = 0;
+  const urls = [];
+  let m;
+  while ((m = LOADSTRING_URL_REGEX.exec(code)) !== null) {
+    urls.push(m[1]);
+  }
+  return urls;
+}
+
 async function fetchScript(inputUrl, maxBytes = 8_000_000) {
   const directUrl = normalizeScriptUrl(inputUrl);
 
   const res = await fetch(directUrl, {
     headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) MommyDeob/1.0'
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) MommyDeob/2.0'
     }
   });
 
@@ -59,4 +73,18 @@ async function fetchScript(inputUrl, maxBytes = 8_000_000) {
   };
 }
 
-module.exports = { normalizeScriptUrl, fetchScript };
+function extractLinksFromText(text) {
+  const links = [];
+  let m;
+  while ((m = LINK_REGEX.exec(text)) !== null) {
+    links.push(m[0]);
+  }
+  return links;
+}
+
+module.exports = {
+  normalizeScriptUrl,
+  fetchScript,
+  extractUrlFromLoadstring,
+  extractLinksFromText
+};

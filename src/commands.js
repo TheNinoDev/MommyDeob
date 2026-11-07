@@ -15,8 +15,10 @@ const { beautifyLua } = require('./features/beautify');
 const { minifyLua } = require('./features/minify');
 const { renameIdentifiers } = require('./features/rename');
 const { getSupportedSummary } = require('./features/supported');
-const { fetchScript } = require('./services/fetcher');
+const { resolvePastblox } = require('./features/pastblox');
+const { fetchScript, extractUrlFromLoadstring, extractLinksFromText } = require('./services/fetcher');
 const { uploadPaste } = require('./services/paste');
+const { getSupportedSites, buildBypassUrl, tryServerSideBypass } = require('./services/bypassCity');
 const { keyManager } = require('./services/keyManager');
 const {
   container,
@@ -62,51 +64,101 @@ function authRequiredResponse(userId) {
   return { components: [comp, row], flags: V2_FLAG };
 }
 
-async function extractScript(message) {
-  // 1. Reply to another message
-  if (message.reference && message.reference.messageId) {
-    try {
-      const refMsg = await message.channel.messages.fetch(message.reference.messageId);
-      if (refMsg) {
-        const extracted = await extractScript(refMsg);
-        if (extracted && extracted.code) return extracted;
-      }
-    } catch (_) {}
-  }
+// Resolve any script input: attachment, code block, URL, reply, loadstring URL, pastblox
+async function resolveScriptInput(messageOrContent) {
+  let sourceText = '';
+  let sourceName = 'script.lua';
+  let originalUrl = null;
 
-  // 2. Attachments
-  const att = message.attachments && message.attachments.first();
-  if (att) {
-    const res = await fetch(att.url);
-    if (!res.ok) throw new Error(`Attachment download failed (${res.status})`);
-    const code = await res.text();
-    return { code, source: 'attachment', name: att.name || 'script.lua' };
-  }
-
-  // 3. Code block in content
-  const content = message.content || '';
-  const codeBlockMatch = content.match(/```(?:lua|luau)?\s*([\s\S]*?)```/i);
-  if (codeBlockMatch) {
-    return { code: codeBlockMatch[1].trim(), source: 'codeblock', name: 'script.lua' };
-  }
-
-  // 4. URL argument
-  const words = content.trim().split(/\s+/);
-  const candidateUrl = words.find(w => /^https?:\/\//i.test(w));
-  if (candidateUrl) {
-    const fetched = await fetchScript(candidateUrl);
-    return { code: fetched.code, source: 'url', name: 'fetched.lua', url: fetched.url };
-  }
-
-  // 5. Raw text after command token
-  if (words.length > 1) {
-    const raw = words.slice(1).join(' ').trim();
-    if (raw.length > 5) {
-      return { code: raw, source: 'text', name: 'script.lua' };
+  if (messageOrContent.content) {
+    // This is a Discord message object
+    const message = messageOrContent;
+    // 1. Reply to another message
+    if (message.reference && message.reference.messageId) {
+      try {
+        const refMsg = await message.channel.messages.fetch(message.reference.messageId);
+        if (refMsg) {
+          const extracted = await resolveScriptInput(refMsg);
+          if (extracted && extracted.code) return extracted;
+        }
+      } catch (_) {}
     }
+
+    // 2. Attachments
+    const att = message.attachments && message.attachments.first();
+    if (att) {
+      const res = await fetch(att.url);
+      if (!res.ok) throw new Error(`Attachment download failed (${res.status})`);
+      return { code: await res.text(), source: 'attachment', name: att.name || 'script.lua' };
+    }
+
+    // 3. Code block in content
+    const content = message.content || '';
+    const codeBlockMatch = content.match(/```(?:lua|luau)?\s*([\s\S]*?)```/i);
+    if (codeBlockMatch) {
+      return { code: codeBlockMatch[1].trim(), source: 'codeblock', name: 'script.lua' };
+    }
+
+    // 4. URL argument or raw text
+    const words = content.trim().split(/\s+/);
+    const candidateUrl = words.find(w => /^https?:\/\//i.test(w));
+    if (candidateUrl) {
+      originalUrl = candidateUrl;
+      sourceText = candidateUrl;
+    } else if (words.length > 1) {
+      sourceText = words.slice(1).join(' ').trim();
+    }
+  } else {
+    // Raw string passed directly
+    sourceText = messageOrContent;
   }
 
-  return null;
+  if (!sourceText || sourceText.length < 3) return null;
+
+  // Handle Pastblox specially
+  if (sourceText.includes('pasteblox.com')) {
+    const resolved = await resolvePastblox(sourceText);
+    if (resolved.innerCode) {
+      return {
+        code: resolved.innerCode,
+        source: 'pastblox',
+        name: 'pastblox_resolved.lua',
+        url: resolved.innerUrl,
+        outerUrl: resolved.outerUrl,
+        innerLoadstringUrls: resolved.innerLoadstringUrls
+      };
+    }
+    return {
+      code: resolved.outerCode,
+      source: 'pastblox_raw',
+      name: 'pasteblox.lua',
+      url: resolved.outerUrl
+    };
+  }
+
+  // Handle loadstring(game:HttpGet("URL"))() pattern - extract inner URL and fetch it
+  const innerUrls = extractUrlFromLoadstring(sourceText);
+  if (innerUrls.length > 0) {
+    const fetched = await fetchScript(innerUrls[0]);
+    return {
+      code: fetched.code,
+      source: 'loadstring_url',
+      name: 'loadstring_resolved.lua',
+      url: fetched.url,
+      originalLoadstringUrl: innerUrls[0],
+      innerUrls
+    };
+  }
+
+  // Handle direct URL fetch
+  const fetched = await fetchScript(sourceText);
+  return {
+    code: fetched.code,
+    source: 'url',
+    name: 'fetched.lua',
+    url: fetched.url,
+    originalUrl: sourceText
+  };
 }
 
 // Handler for .deobf / .do / .deo / .deobfuscate
@@ -118,7 +170,7 @@ async function handleDeobfCommand(message) {
 
   let script;
   try {
-    script = await extractScript(message);
+    script = await resolveScriptInput(message);
   } catch (err) {
     await replyError(message, `Failed reading input: ${err.message}`);
     return;
@@ -142,7 +194,7 @@ async function handleDumpCommand(message) {
 
   let script;
   try {
-    script = await extractScript(message);
+    script = await resolveScriptInput(message);
   } catch (err) {
     await replyError(message, `Failed reading input: ${err.message}`);
     return;
@@ -200,7 +252,7 @@ async function handleSpyCommand(message) {
 
   let script;
   try {
-    script = await extractScript(message);
+    script = await resolveScriptInput(message);
   } catch (err) {
     await replyError(message, `Failed reading input: ${err.message}`);
     return;
@@ -255,7 +307,7 @@ async function handleSpyCommand(message) {
 async function handleDetectCommand(message) {
   let script;
   try {
-    script = await extractScript(message);
+    script = await resolveScriptInput(message);
   } catch (err) {
     await replyError(message, `Failed reading input: ${err.message}`);
     return;
@@ -286,25 +338,25 @@ async function handleDetectCommand(message) {
   await message.reply({ components: [comp], flags: V2_FLAG });
 }
 
-// Handler for .get <url>
+// Handler for .get / .g
 async function handleGetCommand(message) {
   const words = message.content.trim().split(/\s+/);
   const urlArg = words.find(w => /^https?:\/\//i.test(w));
 
   if (!urlArg) {
-    await replyError(message, 'Usage: `.get <URL>` (e.g. raw GitHub, Pastebin, Pastefy). Learn to type.');
+    await replyError(message, 'Usage: `.get <URL>` (e.g. raw GitHub, Pastebin, Pastefy, jnkies API, loadstring URL). Learn to type.');
     return;
   }
 
   try {
     await message.channel.sendTyping();
-    const fetched = await fetchScript(urlArg);
+    const fetched = await resolveScriptInput({ content: urlArg });
 
     const comp = container(
       'Script Downloaded',
       [
-        `Source: ${fetched.url}`,
-        `Payload: ${fetched.bytes.toLocaleString()} bytes`,
+        `Source: ${fetched.url || fetched.originalUrl || 'resolved'}`,
+        `Payload: ${fetched.code.length.toLocaleString()} bytes`,
         '',
         'Target captured. Run `.deobf`, `.dump`, or `.spy` to rip it apart.'
       ].join('\n'),
@@ -312,10 +364,64 @@ async function handleGetCommand(message) {
       '[ fetch complete ]'
     );
 
-    const file = new AttachmentBuilder(Buffer.from(fetched.code, 'utf8'), { name: 'fetched.lua' });
+    const file = new AttachmentBuilder(Buffer.from(fetched.code, 'utf8'), { name: fetched.name || 'fetched.lua' });
     await message.reply({ components: [comp], files: [file], flags: V2_FLAG });
   } catch (err) {
     await replyError(message, `Failed downloading script: ${err.message}`);
+  }
+}
+
+// Handler for .bypass
+async function handleBypassCommand(message) {
+  const words = message.content.trim().split(/\s+/);
+  const urlArg = words.find(w => /^https?:\/\//i.test(w));
+
+  if (!urlArg) {
+    await replyError(message, 'Usage: `.bypass <URL>` (e.g. linkvertise, pastebin, tinyurl, bit.ly). Submit your link for bypassing.');
+    return;
+  }
+
+  try {
+    await message.channel.sendTyping();
+
+    const supportedText = await getSupportedSites();
+    const bypassUrl = buildBypassUrl(urlArg);
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setLabel('Open bypass.city')
+        .setStyle(ButtonStyle.Link)
+        .setURL(bypassUrl)
+    );
+
+    let note = 'bypass.city is primarily browser-based - open the link above to solve any captcha.';
+    try {
+      const ss = await tryServerSideBypass(urlArg);
+      if (ss.redirect) {
+        note = `Server-side redirect detected: ${ss.redirect}`;
+      } else if (ss.status === 200) {
+        note = 'Server-side bypass attempt returned a page. Open the link to confirm completion.';
+      }
+    } catch (_) {}
+
+    const comp = container(
+      'Link Bypass Request',
+      [
+        `Target URL: ${urlArg}`,
+        '',
+        note,
+        '',
+        'Click below to open bypass.city and complete the bypass manually if captcha appears.',
+        '',
+        'Supported sites include: Linkvertise, pastebin, tinyurl, bit.ly, rentry, jnkies, and many more.'
+      ].join('\n'),
+      ACCENT_COLOR,
+      '[ bypass.city integration ]'
+    );
+
+    await message.reply({ components: [comp, row], flags: V2_FLAG });
+  } catch (err) {
+    await replyError(message, `Bypass lookup failed: ${err.message}`);
   }
 }
 
@@ -323,7 +429,7 @@ async function handleGetCommand(message) {
 async function handleRenameCommand(message) {
   let script;
   try {
-    script = await extractScript(message);
+    script = await resolveScriptInput(message);
   } catch (err) {
     await replyError(message, `Failed reading input: ${err.message}`);
     return;
@@ -356,7 +462,7 @@ async function handleRenameCommand(message) {
 async function handleBeautifyCommand(message) {
   let script;
   try {
-    script = await extractScript(message);
+    script = await resolveScriptInput(message);
   } catch (err) {
     await replyError(message, `Failed reading input: ${err.message}`);
     return;
@@ -383,7 +489,7 @@ async function handleBeautifyCommand(message) {
 async function handleMinifyCommand(message) {
   let script;
   try {
-    script = await extractScript(message);
+    script = await resolveScriptInput(message);
   } catch (err) {
     await replyError(message, `Failed reading input: ${err.message}`);
     return;
@@ -410,7 +516,7 @@ async function handleMinifyCommand(message) {
 async function handlePasteCommand(message) {
   let script;
   try {
-    script = await extractScript(message);
+    script = await resolveScriptInput(message);
   } catch (err) {
     await replyError(message, `Failed reading input: ${err.message}`);
     return;
@@ -555,26 +661,36 @@ const slashCommands = [
   new SlashCommandBuilder()
     .setName('deobfuscate')
     .setDescription('Open the devirtualizer panel with dropdown select menu.')
-    .addStringOption(o => o.setName('code').setDescription('Lua code or raw URL'))
+    .addStringOption(o => o.setName('code').setDescription('Lua code, URL, or loadstring URL'))
     .addAttachmentOption(o => o.setName('file').setDescription('Lua script file')),
 
   new SlashCommandBuilder()
     .setName('detect')
     .setDescription('Detect which obfuscator a script is using.')
-    .addStringOption(o => o.setName('code').setDescription('Lua code or raw URL'))
+    .addStringOption(o => o.setName('code').setDescription('Lua code, URL, or loadstring URL'))
     .addAttachmentOption(o => o.setName('file').setDescription('Lua script file')),
 
   new SlashCommandBuilder()
     .setName('dump')
     .setDescription('Run universal environment dumper.')
-    .addStringOption(o => o.setName('code').setDescription('Lua code or raw URL'))
+    .addStringOption(o => o.setName('code').setDescription('Lua code, URL, or loadstring URL'))
     .addAttachmentOption(o => o.setName('file').setDescription('Lua script file')),
 
   new SlashCommandBuilder()
     .setName('spy')
     .setDescription('Run HTTP and network spy to expose webhooks and remotes.')
-    .addStringOption(o => o.setName('code').setDescription('Lua code or raw URL'))
+    .addStringOption(o => o.setName('code').setDescription('Lua code, URL, or loadstring URL'))
     .addAttachmentOption(o => o.setName('file').setDescription('Lua script file')),
+
+  new SlashCommandBuilder()
+    .setName('get')
+    .setDescription('Download raw script from URL (supports loadstring URLs and jnkies API).')
+    .addStringOption(o => o.setName('url').setDescription('Script URL or raw URL').setRequired(true)),
+
+  new SlashCommandBuilder()
+    .setName('bypass')
+    .setDescription('Bypass link shorteners via bypass.city.')
+    .addStringOption(o => o.setName('url').setDescription('Link to bypass').setRequired(true)),
 
   new SlashCommandBuilder()
     .setName('beautify')
@@ -642,7 +758,8 @@ async function handleSlash(interaction) {
         '• `.detect` / `.d` — Identify obfuscator signatures with precision',
         '',
         '**Tools**',
-        '• `.get <url>` — Download raw scripts from GitHub/Pastebin/Pastefy',
+        '• `.get <url>` — Download raw scripts from GitHub/Pastebin/Pastefy/jnkies/loadstring URLs',
+        '• `.bypass <url>` — Bypass link shorteners via bypass.city',
         '• `.rename` / `.rn` — Clean ugly barcode variables into sequential identifiers',
         '• `.beautify` / `.b` — Format messy/minified Lua scripts',
         '• `.minify` — Strip comments and collapse whitespace',
@@ -722,7 +839,7 @@ async function handleSlash(interaction) {
     return;
   }
 
-  let code = interaction.options.getString('code');
+  let code = interaction.options.getString('code') || interaction.options.getString('url');
   const file = interaction.options.getAttachment('file');
   if (!code && file) {
     try {
@@ -766,6 +883,23 @@ async function handleSlash(interaction) {
       const res = spyScript(code);
       const summary = `Webhooks: ${res.webhooks.length}\nEndpoints: ${res.urls.length}\nHTTP Calls: ${res.httpRequests.length}`;
       await interaction.editReply({ components: [container('Network Spy Report', summary, ACCENT_COLOR, '[ traffic captured ]')], flags: V2_FLAG });
+    } else if (commandName === 'get') {
+      const fetched = await resolveScriptInput(code);
+      const comp = container(
+        'Script Downloaded',
+        `Source: ${fetched.url || code}\nPayload: ${fetched.code.length.toLocaleString()} bytes`,
+        SUCCESS_COLOR,
+        '[ fetch complete ]'
+      );
+      const att = new AttachmentBuilder(Buffer.from(fetched.code, 'utf8'), { name: fetched.name || 'fetched.lua' });
+      await interaction.editReply({ components: [comp], files: [att], flags: V2_FLAG });
+    } else if (commandName === 'bypass') {
+      const bypassUrl = buildBypassUrl(code);
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setLabel('Open bypass.city').setStyle(ButtonStyle.Link).setURL(bypassUrl)
+      );
+      const comp = container('Link Bypass Request', `Target URL: ${code}\nOpen bypass.city above to complete captcha and get the direct link.`, ACCENT_COLOR, '[ bypass.city ]');
+      await interaction.editReply({ components: [comp, row], flags: V2_FLAG });
     } else if (commandName === 'beautify') {
       const b = beautifyLua(code);
       if (b.length <= MAX_DISCORD_TEXT) {
@@ -800,12 +934,13 @@ async function handleSlash(interaction) {
 }
 
 module.exports = {
-  extractScript,
+  resolveScriptInput,
   handleDeobfCommand,
   handleDumpCommand,
   handleSpyCommand,
   handleDetectCommand,
   handleGetCommand,
+  handleBypassCommand,
   handleRenameCommand,
   handleBeautifyCommand,
   handleMinifyCommand,
