@@ -18,11 +18,18 @@ const { getSupportedSummary } = require('./features/supported');
 const { fetchScript } = require('./services/fetcher');
 const { uploadPaste } = require('./services/paste');
 const { keyManager } = require('./services/keyManager');
-const { container, errorContainer, V2_FLAG } = require('./utils/discordComponents');
+const {
+  container,
+  errorContainer,
+  replyError,
+  V2_FLAG,
+  ACCENT_COLOR,
+  SUCCESS_COLOR,
+  WARN_COLOR
+} = require('./utils/discordComponents');
 
 const MAX_DISCORD_TEXT = 1800;
 
-// Helper: check user key authorization
 function checkAuth(userId) {
   return keyManager.hasAccess(userId);
 }
@@ -31,31 +38,32 @@ function authRequiredResponse(userId) {
   const url = keyManager.getKeyUrl(userId);
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setLabel('Get Free 7-Day Key')
+      .setLabel('Get 7-Day Access Key')
       .setStyle(ButtonStyle.Link)
       .setURL(url)
   );
 
   const comp = container(
-    '🔑 Key Required',
+    'License Required',
     [
-      'You need an active **7-day license key** to use this feature.',
+      'Ara ara... where do you think you are going without a key, skid?',
+      'Mommy does not work for free. You need an active 7-day license.',
       '',
-      `1. Click the button below to get your key via Linkvertise.`,
-      `2. Once you have your key, run:`,
-      `   \`\`\`.redeem <YOUR_KEY>\`\`\``,
+      '1. Click below and complete the Linkvertise ads properly (no cheat bypassers).',
+      '2. Take your hash or key and redeem it with:',
+      '   `.redeem <KEY_OR_HASH>`',
       '',
-      'Each free key grants full access for 7 days.'
+      'Now get on your knees and do your tasks, baka.'
     ].join('\n'),
-    0xFEE75C
+    WARN_COLOR,
+    '[ access denied ]'
   );
 
   return { components: [comp, row], flags: V2_FLAG };
 }
 
-// Extract script from message (supporting replies, attachments, URLs, and code blocks)
 async function extractScript(message) {
-  // 1. Check if this is a reply to another message
+  // 1. Reply to another message
   if (message.reference && message.reference.messageId) {
     try {
       const refMsg = await message.channel.messages.fetch(message.reference.messageId);
@@ -66,23 +74,23 @@ async function extractScript(message) {
     } catch (_) {}
   }
 
-  // 2. Check attachments
+  // 2. Attachments
   const att = message.attachments && message.attachments.first();
   if (att) {
     const res = await fetch(att.url);
-    if (!res.ok) throw new Error(`Failed to download attachment (${res.status})`);
+    if (!res.ok) throw new Error(`Attachment download failed (${res.status})`);
     const code = await res.text();
     return { code, source: 'attachment', name: att.name || 'script.lua' };
   }
 
-  // 3. Check for code block in content
+  // 3. Code block in content
   const content = message.content || '';
   const codeBlockMatch = content.match(/```(?:lua|luau)?\s*([\s\S]*?)```/i);
   if (codeBlockMatch) {
     return { code: codeBlockMatch[1].trim(), source: 'codeblock', name: 'script.lua' };
   }
 
-  // 4. Check for URL argument
+  // 4. URL argument
   const words = content.trim().split(/\s+/);
   const candidateUrl = words.find(w => /^https?:\/\//i.test(w));
   if (candidateUrl) {
@@ -108,12 +116,16 @@ async function handleDeobfCommand(message) {
     return;
   }
 
-  const script = await extractScript(message);
+  let script;
+  try {
+    script = await extractScript(message);
+  } catch (err) {
+    await replyError(message, `Failed reading input: ${err.message}`);
+    return;
+  }
+
   if (!script || !script.code) {
-    await message.reply({
-      components: [errorContainer('Please provide a script via attachment, code block, URL, or reply to a message containing a script.')],
-      flags: V2_FLAG
-    });
+    await replyError(message, 'You provided zero code, baka. Attach a .lua/.txt file, paste a code block, or provide a URL.');
     return;
   }
 
@@ -128,12 +140,16 @@ async function handleDumpCommand(message) {
     return;
   }
 
-  const script = await extractScript(message);
+  let script;
+  try {
+    script = await extractScript(message);
+  } catch (err) {
+    await replyError(message, `Failed reading input: ${err.message}`);
+    return;
+  }
+
   if (!script || !script.code) {
-    await message.reply({
-      components: [errorContainer('Provide a script to dump.')],
-      flags: V2_FLAG
-    });
+    await replyError(message, 'Feed me a script to dump, you absolute peasant.');
     return;
   }
 
@@ -142,7 +158,8 @@ async function handleDumpCommand(message) {
 
   const formattedOutput = [
     '-- MommyDeob Universal Environment Dump',
-    `-- Total Log Entries: ${res.totalLogs}`,
+    `-- Log Entries: ${res.totalLogs}`,
+    '-- Cry about it skid',
     '',
     '-- [ACCESSED SERVICES & GLOBALS]',
     ...(res.accessed.map(a => `accessed: ${a}`)),
@@ -156,17 +173,19 @@ async function handleDumpCommand(message) {
 
   if (formattedOutput.length <= MAX_DISCORD_TEXT) {
     const comp = container(
-      'Environment Dump',
+      'Environment Dump Result',
       `\`\`\`lua\n${formattedOutput}\n\`\`\``,
-      0x57F287
+      SUCCESS_COLOR,
+      '[ memory stripped ]'
     );
     await message.reply({ components: [comp], flags: V2_FLAG });
   } else {
     const file = new AttachmentBuilder(Buffer.from(formattedOutput, 'utf8'), { name: 'dump.lua' });
     const comp = container(
-      'Environment Dump',
-      `Dump complete (${res.totalLogs} logs, ${res.accessed.length} accessed items). Attached as file.`,
-      0x57F287
+      'Environment Dump Result',
+      `Ripped ${res.totalLogs} runtime logs and ${res.accessed.length} globals. Output file attached.`,
+      SUCCESS_COLOR,
+      '[ memory stripped - file attached ]'
     );
     await message.reply({ components: [comp], files: [file], flags: V2_FLAG });
   }
@@ -179,12 +198,16 @@ async function handleSpyCommand(message) {
     return;
   }
 
-  const script = await extractScript(message);
+  let script;
+  try {
+    script = await extractScript(message);
+  } catch (err) {
+    await replyError(message, `Failed reading input: ${err.message}`);
+    return;
+  }
+
   if (!script || !script.code) {
-    await message.reply({
-      components: [errorContainer('Provide a script to spy on.')],
-      flags: V2_FLAG
-    });
+    await replyError(message, 'Provide a script to spy on, baka.');
     return;
   }
 
@@ -192,36 +215,37 @@ async function handleSpyCommand(message) {
   const res = spyScript(script.code);
 
   const lines = [
-    `📡 **HTTP Requests:** ${res.httpRequests.length}`,
-    `🔌 **WebSockets:** ${res.webSockets.length}`,
-    `⚡ **Remote Calls:** ${res.remoteCalls.length}`,
-    `🎯 **Webhooks Found:** ${res.webhooks.length}`,
-    `🌐 **URLs Detected:** ${res.urls.length}`,
+    `HTTP Requests: ${res.httpRequests.length}`,
+    `WebSockets: ${res.webSockets.length}`,
+    `Remote Calls: ${res.remoteCalls.length}`,
+    `Webhooks Found: ${res.webhooks.length}`,
+    `Endpoints Detected: ${res.urls.length}`,
     ''
   ];
 
   if (res.webhooks.length > 0) {
-    lines.push('**Webhooks Detected:**');
+    lines.push('Exposed Discord Webhooks:');
     res.webhooks.forEach(wh => lines.push(`• \`${wh}\``));
     lines.push('');
   }
 
   if (res.urls.length > 0) {
-    lines.push('**Endpoints & URLs:**');
+    lines.push('Target Endpoints:');
     res.urls.slice(0, 10).forEach(u => lines.push(`• \`${u}\``));
     lines.push('');
   }
 
   if (res.httpRequests.length > 0) {
-    lines.push('**HTTP Calls:**');
+    lines.push('Intercepted HTTP Calls:');
     res.httpRequests.slice(0, 5).forEach(req => lines.push(`• \`${req}\``));
     lines.push('');
   }
 
   const comp = container(
-    '🕵️ HTTP / Network Spy Report',
+    'Network Spy Intercept',
     lines.join('\n').slice(0, 3900),
-    res.webhooks.length > 0 ? 0xED4245 : 0x5865F2
+    res.webhooks.length > 0 ? 0xAA0033 : ACCENT_COLOR,
+    '[ traffic intercepted ]'
   );
 
   await message.reply({ components: [comp], flags: V2_FLAG });
@@ -229,12 +253,16 @@ async function handleSpyCommand(message) {
 
 // Handler for .detect / .d
 async function handleDetectCommand(message) {
-  const script = await extractScript(message);
+  let script;
+  try {
+    script = await extractScript(message);
+  } catch (err) {
+    await replyError(message, `Failed reading input: ${err.message}`);
+    return;
+  }
+
   if (!script || !script.code) {
-    await message.reply({
-      components: [errorContainer('Provide a script to detect.')],
-      flags: V2_FLAG
-    });
+    await replyError(message, 'Provide a script so mommy can tell you how bad it is.');
     return;
   }
 
@@ -242,13 +270,17 @@ async function handleDetectCommand(message) {
   const detectedTitle = detectName(detectedId);
 
   const comp = container(
-    '🔍 Obfuscator Detection',
+    'Obfuscator Identification',
     [
-      `**Result:** **${detectedTitle}** (\`${detectedId}\`)`,
-      `**Status:** ${detectedId === 'wearedevs' ? '✅ Full Deobfuscation Available' : '🔄 Detection & Dump Supported'}`,
-      `**Script Size:** ${script.code.length.toLocaleString()} characters`
+      `Identified Engine: **${detectedTitle}** (\`${detectedId}\`)`,
+      `Script Length: ${script.code.length.toLocaleString()} characters`,
+      '',
+      detectedId === 'wearedevs'
+        ? 'Full deobfuscation available. Run `.deobf` to watch it get annihilated.'
+        : 'Signature recognized. Run `.dump` or `.spy` to rip its memory wide open.'
     ].join('\n'),
-    detectedId === 'wearedevs' ? 0x57F287 : 0xFEE75C
+    detectedId === 'wearedevs' ? SUCCESS_COLOR : WARN_COLOR,
+    '[ signature scan ]'
   );
 
   await message.reply({ components: [comp], flags: V2_FLAG });
@@ -260,10 +292,7 @@ async function handleGetCommand(message) {
   const urlArg = words.find(w => /^https?:\/\//i.test(w));
 
   if (!urlArg) {
-    await message.reply({
-      components: [errorContainer('Usage: `.get <URL>` (e.g. raw GitHub, Pastebin, Pastefy)')],
-      flags: V2_FLAG
-    });
+    await replyError(message, 'Usage: `.get <URL>` (e.g. raw GitHub, Pastebin, Pastefy). Learn to type.');
     return;
   }
 
@@ -272,112 +301,123 @@ async function handleGetCommand(message) {
     const fetched = await fetchScript(urlArg);
 
     const comp = container(
-      '📥 Script Fetched',
+      'Script Downloaded',
       [
-        `**URL:** ${fetched.url}`,
-        `**Size:** ${fetched.bytes.toLocaleString()} bytes`,
+        `Source: ${fetched.url}`,
+        `Payload: ${fetched.bytes.toLocaleString()} bytes`,
         '',
-        'Use `.deobf`, `.dump`, or `.spy` on this script.'
+        'Target captured. Run `.deobf`, `.dump`, or `.spy` to rip it apart.'
       ].join('\n'),
-      0x57F287
+      SUCCESS_COLOR,
+      '[ fetch complete ]'
     );
 
     const file = new AttachmentBuilder(Buffer.from(fetched.code, 'utf8'), { name: 'fetched.lua' });
     await message.reply({ components: [comp], files: [file], flags: V2_FLAG });
   } catch (err) {
-    await message.reply({
-      components: [errorContainer(`Failed to fetch script: ${err.message}`)],
-      flags: V2_FLAG
-    });
+    await replyError(message, `Failed downloading script: ${err.message}`);
   }
 }
 
 // Handler for .rename / .rn
 async function handleRenameCommand(message) {
-  const script = await extractScript(message);
+  let script;
+  try {
+    script = await extractScript(message);
+  } catch (err) {
+    await replyError(message, `Failed reading input: ${err.message}`);
+    return;
+  }
+
   if (!script || !script.code) {
-    await message.reply({
-      components: [errorContainer('Provide a script to rename variables.')],
-      flags: V2_FLAG
-    });
+    await replyError(message, 'Give me a script with awful unreadable variable names to fix.');
     return;
   }
 
   const res = renameIdentifiers(script.code);
   if (res.count === 0) {
-    await message.reply({
-      components: [container('Rename Identifiers', 'No heavily obfuscated identifiers were detected in this script.', 0xFEE75C)],
-      flags: V2_FLAG
-    });
+    await replyError(message, 'No heavily obfuscated barcode/hex identifiers were found in this script.');
     return;
   }
 
-  const header = `Renamed **${res.count}** obfuscated identifiers to clean sequential names (\`var_1\`, \`var_2\`, ...).`;
+  const header = `Replaced **${res.count}** disgusting unreadable identifiers with clean sequential names (\`var_1\`, \`var_2\`). You are welcome.`;
 
   if (res.code.length <= MAX_DISCORD_TEXT) {
-    const comp = container('Rename Identifiers', `${header}\n\`\`\`lua\n${res.code}\n\`\`\``, 0x57F287);
+    const comp = container('Identifier Renamer', `${header}\n\`\`\`lua\n${res.code}\n\`\`\``, SUCCESS_COLOR, '[ cleaned ]');
     await message.reply({ components: [comp], flags: V2_FLAG });
   } else {
     const file = new AttachmentBuilder(Buffer.from(res.code, 'utf8'), { name: 'renamed.lua' });
-    const comp = container('Rename Identifiers', `${header} Result is attached as a file.`, 0x57F287);
+    const comp = container('Identifier Renamer', `${header} Result is attached as a file.`, SUCCESS_COLOR, '[ cleaned - file attached ]');
     await message.reply({ components: [comp], files: [file], flags: V2_FLAG });
   }
 }
 
 // Handler for .beautify / .b
 async function handleBeautifyCommand(message) {
-  const script = await extractScript(message);
+  let script;
+  try {
+    script = await extractScript(message);
+  } catch (err) {
+    await replyError(message, `Failed reading input: ${err.message}`);
+    return;
+  }
+
   if (!script || !script.code) {
-    await message.reply({
-      components: [errorContainer('Provide a script to beautify.')],
-      flags: V2_FLAG
-    });
+    await replyError(message, 'Provide some messy code to beautify, baka.');
     return;
   }
 
   const formatted = beautifyLua(script.code);
 
   if (formatted.length <= MAX_DISCORD_TEXT) {
-    const comp = container('Beautified Lua', `\`\`\`lua\n${formatted}\n\`\`\``, 0x57F287);
+    const comp = container('Lua Beautifier', `\`\`\`lua\n${formatted}\n\`\`\``, SUCCESS_COLOR, '[ formatted ]');
     await message.reply({ components: [comp], flags: V2_FLAG });
   } else {
     const file = new AttachmentBuilder(Buffer.from(formatted, 'utf8'), { name: 'beautified.lua' });
-    const comp = container('Beautified Lua', 'Formatted code attached as a file.', 0x57F287);
+    const comp = container('Lua Beautifier', 'Formatted code attached below.', SUCCESS_COLOR, '[ formatted - file attached ]');
     await message.reply({ components: [comp], files: [file], flags: V2_FLAG });
   }
 }
 
 // Handler for .minify
 async function handleMinifyCommand(message) {
-  const script = await extractScript(message);
+  let script;
+  try {
+    script = await extractScript(message);
+  } catch (err) {
+    await replyError(message, `Failed reading input: ${err.message}`);
+    return;
+  }
+
   if (!script || !script.code) {
-    await message.reply({
-      components: [errorContainer('Provide a script to minify.')],
-      flags: V2_FLAG
-    });
+    await replyError(message, 'Provide code to minify, baka.');
     return;
   }
 
   const minified = minifyLua(script.code);
 
   if (minified.length <= MAX_DISCORD_TEXT) {
-    const comp = container('Minified Lua', `\`\`\`lua\n${minified}\n\`\`\``, 0x57F287);
+    const comp = container('Lua Minifier', `\`\`\`lua\n${minified}\n\`\`\``, SUCCESS_COLOR, '[ minified ]');
     await message.reply({ components: [comp], flags: V2_FLAG });
   } else {
     const file = new AttachmentBuilder(Buffer.from(minified, 'utf8'), { name: 'minified.lua' });
-    const comp = container('Minified Lua', `Minified down to ${minified.length.toLocaleString()} characters. Attached as file.`, 0x57F287);
+    const comp = container('Lua Minifier', `Compressed down to ${minified.length.toLocaleString()} characters. File attached.`, SUCCESS_COLOR, '[ minified - file attached ]');
     await message.reply({ components: [comp], files: [file], flags: V2_FLAG });
   }
 }
 
-// Handler for .paste / .p
+// Handler for .paste / .post / .p
 async function handlePasteCommand(message) {
-  const script = await extractScript(message);
+  let script;
+  try {
+    script = await extractScript(message);
+  } catch (err) {
+    await replyError(message, `Failed reading input: ${err.message}`);
+    return;
+  }
+
   if (!script || !script.code) {
-    await message.reply({
-      components: [errorContainer('Provide a script to paste.')],
-      flags: V2_FLAG
-    });
+    await replyError(message, 'Nothing to paste. Attach a file, paste code, or reply to a message with a script.');
     return;
   }
 
@@ -387,7 +427,7 @@ async function handlePasteCommand(message) {
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setLabel('View on ' + res.service)
+        .setLabel(`View on ${res.service}`)
         .setStyle(ButtonStyle.Link)
         .setURL(res.url),
       new ButtonBuilder()
@@ -397,26 +437,30 @@ async function handlePasteCommand(message) {
     );
 
     const comp = container(
-      '📋 Paste Created',
-      `Your script was uploaded to **${res.service}**.\n\n🔗 **Link:** ${res.url}\n📄 **Raw:** ${res.rawUrl}`,
-      0x57F287
+      'Paste Uploaded',
+      [
+        `Target uploaded to ${res.service}.`,
+        '',
+        `Link: ${res.url}`,
+        `Raw: ${res.rawUrl}`
+      ].join('\n'),
+      SUCCESS_COLOR,
+      '[ upload success ]'
     );
 
     await message.reply({ components: [comp, row], flags: V2_FLAG });
   } catch (err) {
-    await message.reply({
-      components: [errorContainer(`Paste failed: ${err.message}`)],
-      flags: V2_FLAG
-    });
+    await replyError(message, `Paste upload failed: ${err.message}`);
   }
 }
 
 // Handler for .supported
 async function handleSupportedCommand(message) {
   const comp = container(
-    '🛡️ Supported Obfuscators & Tools',
+    'Supported Obfuscator Matrix',
     getSupportedSummary(),
-    0x5865F2
+    ACCENT_COLOR,
+    '[ devirtualizer engines ]'
   );
   await message.reply({ components: [comp], flags: V2_FLAG });
 }
@@ -426,60 +470,60 @@ async function handleGetKeyCommand(message) {
   const url = keyManager.getKeyUrl(message.author.id);
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setLabel('Generate 7-Day Key')
+      .setLabel('Complete Linkvertise (7 Days)')
       .setStyle(ButtonStyle.Link)
       .setURL(url)
   );
 
   const comp = container(
-    '🔑 MommyDeob Free Key',
+    'MommyDeob License Generation',
     [
-      'Click below to generate your free **7-Day Access Key** through Linkvertise.',
+      'Generate your free 7-Day Access Key through Linkvertise below.',
       '',
-      'Once completed, redeem it by typing:',
-      '```.redeem <YOUR_KEY>```'
+      'Notice: Anti-bypass token is strictly enforced on our backend.',
+      'If you try to use automated bypassers, your token will be rejected and logged.',
+      '',
+      'Once finished, redeem your key or completion hash with:',
+      '```.redeem <KEY_OR_HASH>```'
     ].join('\n'),
-    0x5865F2
+    ACCENT_COLOR,
+    '[ key generator ]'
   );
 
   await message.reply({ components: [comp, row], flags: V2_FLAG });
 }
 
-// Handler for .redeem <key>
+// Handler for .redeem <key_or_hash>
 async function handleRedeemCommand(message) {
   const parts = message.content.trim().split(/\s+/);
-  const keyArg = parts[1];
+  const tokenArg = parts[1];
 
-  if (!keyArg) {
-    await message.reply({
-      components: [errorContainer('Usage: `.redeem <KEY>`\nGet a key using `.getkey`.')],
-      flags: V2_FLAG
-    });
+  if (!tokenArg) {
+    await replyError(message, 'Usage: `.redeem <KEY_OR_HASH>`\nGet one using `.getkey`. Do not make mommy repeat herself.');
     return;
   }
 
   try {
     await message.channel.sendTyping();
-    const res = await keyManager.redeemKey(message.author.id, keyArg);
+    const res = await keyManager.redeemKey(message.author.id, tokenArg);
 
     const comp = container(
-      '🎉 Key Activated!',
+      'License Activated',
       [
-        `**Status:** ${res.message}`,
-        `**Days Remaining:** ${res.daysRemaining} days`,
-        `**Expires:** ${res.expiresAt}`,
+        `Verification: ${res.method}`,
+        `Status: ${res.message}`,
+        `Time Remaining: ${res.daysRemaining} days`,
+        `Expires: ${res.expiresAt}`,
         '',
-        'You can now use `.deobf`, `.dump`, `.spy` and all features.'
+        'Now run `.deobf`, `.dump`, or `.spy` and stop crying.'
       ].join('\n'),
-      0x57F287
+      SUCCESS_COLOR,
+      '[ authorization granted ]'
     );
 
     await message.reply({ components: [comp], flags: V2_FLAG });
   } catch (err) {
-    await message.reply({
-      components: [errorContainer(`Redeem failed: ${err.message}`)],
-      flags: V2_FLAG
-    });
+    await replyError(message, err.message);
   }
 }
 
@@ -492,138 +536,139 @@ async function handleStatusCommand(message) {
   }
 
   const comp = container(
-    '🔑 Key Status',
+    'License Status',
     [
-      `**Status:** Active ✅`,
-      `**Key:** \`${status.key}\``,
-      `**Days Remaining:** ${status.daysRemaining} days`,
-      `**Expires:** ${status.expiresAt}`
+      'Status: Active',
+      `Key: \`${status.key}\``,
+      `Days Remaining: ${status.daysRemaining} days`,
+      `Expires: ${status.expiresAt}`
     ].join('\n'),
-    0x57F287
+    SUCCESS_COLOR,
+    '[ authorized user ]'
   );
 
   await message.reply({ components: [comp], flags: V2_FLAG });
 }
 
-// Slash commands definition
+// Slash command declarations
 const slashCommands = [
   new SlashCommandBuilder()
     .setName('deobfuscate')
-    .setDescription('Open the deobfuscation panel with interactive dropdown.')
-    .addStringOption(o => o.setName('code').setDescription('Lua script or raw URL'))
+    .setDescription('Open the devirtualizer panel with dropdown select menu.')
+    .addStringOption(o => o.setName('code').setDescription('Lua code or raw URL'))
     .addAttachmentOption(o => o.setName('file').setDescription('Lua script file')),
 
   new SlashCommandBuilder()
     .setName('detect')
     .setDescription('Detect which obfuscator a script is using.')
-    .addStringOption(o => o.setName('code').setDescription('Lua script or raw URL'))
+    .addStringOption(o => o.setName('code').setDescription('Lua code or raw URL'))
     .addAttachmentOption(o => o.setName('file').setDescription('Lua script file')),
 
   new SlashCommandBuilder()
     .setName('dump')
-    .setDescription('Run environment dumper to extract constants and trace.')
-    .addStringOption(o => o.setName('code').setDescription('Lua script or raw URL'))
+    .setDescription('Run universal environment dumper.')
+    .addStringOption(o => o.setName('code').setDescription('Lua code or raw URL'))
     .addAttachmentOption(o => o.setName('file').setDescription('Lua script file')),
 
   new SlashCommandBuilder()
     .setName('spy')
-    .setDescription('Run HTTP & Network spy on a script.')
-    .addStringOption(o => o.setName('code').setDescription('Lua script or raw URL'))
+    .setDescription('Run HTTP and network spy to expose webhooks and remotes.')
+    .addStringOption(o => o.setName('code').setDescription('Lua code or raw URL'))
     .addAttachmentOption(o => o.setName('file').setDescription('Lua script file')),
 
   new SlashCommandBuilder()
     .setName('beautify')
-    .setDescription('Beautify and format Lua/Luau code.')
-    .addStringOption(o => o.setName('code').setDescription('Lua script or raw URL'))
+    .setDescription('Format and indent Lua code.')
+    .addStringOption(o => o.setName('code').setDescription('Lua code or raw URL'))
     .addAttachmentOption(o => o.setName('file').setDescription('Lua script file')),
 
   new SlashCommandBuilder()
     .setName('minify')
-    .setDescription('Minify Lua/Luau code.')
-    .addStringOption(o => o.setName('code').setDescription('Lua script or raw URL'))
+    .setDescription('Strip comments and compress Lua code.')
+    .addStringOption(o => o.setName('code').setDescription('Lua code or raw URL'))
     .addAttachmentOption(o => o.setName('file').setDescription('Lua script file')),
 
   new SlashCommandBuilder()
     .setName('rename')
-    .setDescription('Rename obfuscated variables to clean sequential names.')
-    .addStringOption(o => o.setName('code').setDescription('Lua script or raw URL'))
+    .setDescription('Clean obfuscated variable names.')
+    .addStringOption(o => o.setName('code').setDescription('Lua code or raw URL'))
     .addAttachmentOption(o => o.setName('file').setDescription('Lua script file')),
 
   new SlashCommandBuilder()
     .setName('paste')
-    .setDescription('Upload a script to a pastebin service.')
-    .addStringOption(o => o.setName('code').setDescription('Lua script to paste'))
+    .setDescription('Upload script to Pastefy / Hastebin.')
+    .addStringOption(o => o.setName('code').setDescription('Lua script to upload'))
     .addAttachmentOption(o => o.setName('file').setDescription('Lua script file')),
 
   new SlashCommandBuilder()
     .setName('supported')
-    .setDescription('List all supported obfuscators and tool status.'),
+    .setDescription('List all supported obfuscators and engines.'),
 
   new SlashCommandBuilder()
     .setName('getkey')
-    .setDescription('Get a free 7-day access key via Linkvertise.'),
+    .setDescription('Generate 7-day license key via Linkvertise.'),
 
   new SlashCommandBuilder()
     .setName('redeem')
-    .setDescription('Redeem your 7-day access key.')
-    .addStringOption(o => o.setName('key').setDescription('Your license key').setRequired(true)),
+    .setDescription('Redeem your 7-day license key or completion hash.')
+    .addStringOption(o => o.setName('token').setDescription('Your license key or hash').setRequired(true)),
 
   new SlashCommandBuilder()
     .setName('status')
-    .setDescription('Check your current key license status.'),
+    .setDescription('Check your current license duration.'),
 
   new SlashCommandBuilder()
     .setName('help')
-    .setDescription('Show MommyDeob help menu.'),
+    .setDescription('Show MommyDeob command matrix.'),
 
   new SlashCommandBuilder()
     .setName('ping')
-    .setDescription('Check bot latency.')
+    .setDescription('Check bot websocket latency.')
 ];
 
-// Slash command interaction router
 async function handleSlash(interaction) {
   const { commandName } = interaction;
 
   if (commandName === 'help') {
     const comp = container(
-      '📜 MommyDeob Commands',
+      'MommyDeob Command Matrix',
       [
-        'Prefix `.` and slash `/` both work!',
+        'Prefix `.` and slash `/` both work.',
         '',
-        '**🔍 Deobfuscation & Analysis**',
-        '• `.deobf` / `.do` / `.deo` — Interactive panel with dropdown menu (detected engine on top!)',
-        '• `.dump` / `.l` / `.log` — Universal environment logger & constant dumper',
-        '• `.spy` — HTTP Spy: logs webhooks, HttpGet/Post, WebSockets, remotes, IPs',
-        '• `.detect` / `.d` — Detect obfuscator type with confidence',
+        '**Deobfuscation & Analysis**',
+        '• `.deobf` / `.do` / `.deo` — Devirtualizer panel with dropdown menu (detected engine on top)',
+        '• `.dump` / `.l` / `.log` — Universal environment logger and constant dumper',
+        '• `.spy` — HTTP Spy: exposes webhooks, endpoints, WebSockets, remotes',
+        '• `.detect` / `.d` — Identify obfuscator signatures with precision',
         '',
-        '**🧰 Tools**',
-        '• `.get <url>` — Fetch raw script from GitHub/Pastebin/Pastefy',
-        '• `.rename` / `.rn` — Rename unreadable identifiers into clean sequential names',
+        '**Tools**',
+        '• `.get <url>` — Download raw scripts from GitHub/Pastebin/Pastefy',
+        '• `.rename` / `.rn` — Clean ugly barcode variables into sequential identifiers',
         '• `.beautify` / `.b` — Format messy/minified Lua scripts',
         '• `.minify` — Strip comments and collapse whitespace',
-        '• `.paste` / `.p` — Upload code to Pastefy / Hastebin',
-        '• `.supported` — View supported obfuscators and feature status',
+        '• `.paste` / `.post` / `.p` — Upload code to Pastefy / Hastebin',
+        '• `.supported` — View obfuscator engine matrix',
         '',
-        '**💎 7-Day Key System (PWF Auth)**',
+        '**License & Anti-Bypass**',
         '• `.getkey` — Get your free 7-day access key',
-        '• `.redeem <KEY>` — Activate your key',
+        '• `.redeem <KEY_OR_HASH>` — Activate your key',
         '• `.status` — Check remaining days on your license'
       ].join('\n'),
-      0x5865F2
+      ACCENT_COLOR,
+      '[ mommydev control panel ]'
     );
     await interaction.reply({ components: [comp], flags: V2_FLAG });
     return;
   }
 
   if (commandName === 'ping') {
-    const comp = container('Pong', `Latency: ${interaction.client.ws.ping}ms`, 0x5865F2);
+    const comp = container('Latency', `Websocket: ${interaction.client.ws.ping}ms`, ACCENT_COLOR, '[ pong ]');
     await interaction.reply({ components: [comp], flags: V2_FLAG });
     return;
   }
 
   if (commandName === 'supported') {
-    const comp = container('🛡️ Supported Obfuscators & Tools', getSupportedSummary(), 0x5865F2);
+    const comp = container('Supported Obfuscator Matrix', getSupportedSummary(), ACCENT_COLOR, '[ devirtualizer engines ]');
     await interaction.reply({ components: [comp], flags: V2_FLAG });
     return;
   }
@@ -631,26 +676,27 @@ async function handleSlash(interaction) {
   if (commandName === 'getkey') {
     const url = keyManager.getKeyUrl(interaction.user.id);
     const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setLabel('Generate 7-Day Key').setStyle(ButtonStyle.Link).setURL(url)
+      new ButtonBuilder().setLabel('Complete Linkvertise (7 Days)').setStyle(ButtonStyle.Link).setURL(url)
     );
-    const comp = container('🔑 Free 7-Day Key', 'Click below to generate your key, then use `/redeem`.', 0x5865F2);
+    const comp = container('License Generation', 'Complete Linkvertise below, then use `/redeem`.', ACCENT_COLOR, '[ key generator ]');
     await interaction.reply({ components: [comp, row], flags: V2_FLAG });
     return;
   }
 
   if (commandName === 'redeem') {
-    const key = interaction.options.getString('key');
+    const token = interaction.options.getString('token');
     await interaction.deferReply();
     try {
-      const res = await keyManager.redeemKey(interaction.user.id, key);
+      const res = await keyManager.redeemKey(interaction.user.id, token);
       const comp = container(
-        '🎉 Key Activated!',
-        `**Status:** ${res.message}\n**Days Remaining:** ${res.daysRemaining} days\n**Expires:** ${res.expiresAt}`,
-        0x57F287
+        'License Activated',
+        `Verification: ${res.method}\nStatus: ${res.message}\nDays Remaining: ${res.daysRemaining} days\nExpires: ${res.expiresAt}`,
+        SUCCESS_COLOR,
+        '[ authorized ]'
       );
       await interaction.editReply({ components: [comp], flags: V2_FLAG });
     } catch (e) {
-      await interaction.editReply({ components: [errorContainer(e.message)], flags: V2_FLAG });
+      await replyError(interaction, e.message);
     }
     return;
   }
@@ -662,16 +708,15 @@ async function handleSlash(interaction) {
       return;
     }
     const comp = container(
-      '🔑 Key Status',
-      `**Status:** Active ✅\n**Key:** \`${status.key}\`\n**Days Remaining:** ${status.daysRemaining} days\n**Expires:** ${status.expiresAt}`,
-      0x57F287
+      'License Status',
+      `Status: Active\nKey: \`${status.key}\`\nDays Remaining: ${status.daysRemaining} days\nExpires: ${status.expiresAt}`,
+      SUCCESS_COLOR,
+      '[ authorized user ]'
     );
     await interaction.reply({ components: [comp], flags: V2_FLAG });
     return;
   }
 
-  // Deobfuscate / Dump / Spy / Beautify / Minify / Rename / Paste
-  // Check auth first for deobf, dump, spy
   if (['deobfuscate', 'dump', 'spy'].includes(commandName) && !checkAuth(interaction.user.id)) {
     await interaction.reply(authRequiredResponse(interaction.user.id));
     return;
@@ -684,13 +729,13 @@ async function handleSlash(interaction) {
       const res = await fetch(file.url);
       code = await res.text();
     } catch (e) {
-      await interaction.reply({ components: [errorContainer(e.message)], flags: V2_FLAG });
+      await replyError(interaction, `Attachment download failed: ${e.message}`);
       return;
     }
   }
 
   if (!code) {
-    await interaction.reply({ components: [errorContainer('Provide Lua code or a file.')], flags: V2_FLAG });
+    await replyError(interaction, 'You provided zero code, baka. Pass code or a file.');
     return;
   }
 
@@ -706,51 +751,51 @@ async function handleSlash(interaction) {
     if (commandName === 'detect') {
       const detectedId = detect(code);
       const detectedTitle = detectName(detectedId);
-      const comp = container('🔍 Detection', `**Result:** **${detectedTitle}** (\`${detectedId}\`)`, 0x5865F2);
+      const comp = container('Obfuscator Identification', `Identified: **${detectedTitle}** (\`${detectedId}\`)`, ACCENT_COLOR, '[ scan complete ]');
       await interaction.editReply({ components: [comp], flags: V2_FLAG });
     } else if (commandName === 'dump') {
       const res = dumpScript(code);
-      const out = `-- MommyDeob Dump\n-- Logs: ${res.totalLogs}\n\n${res.trace.join('\n')}`;
+      const out = `-- MommyDeob Dump\n-- Total Logs: ${res.totalLogs}\n\n${res.trace.join('\n')}`;
       if (out.length <= MAX_DISCORD_TEXT) {
-        await interaction.editReply({ components: [container('Dump', `\`\`\`lua\n${out}\n\`\`\``, 0x57F287)], flags: V2_FLAG });
+        await interaction.editReply({ components: [container('Environment Dump', `\`\`\`lua\n${out}\n\`\`\``, SUCCESS_COLOR, '[ dump complete ]')], flags: V2_FLAG });
       } else {
         const att = new AttachmentBuilder(Buffer.from(out, 'utf8'), { name: 'dump.lua' });
-        await interaction.editReply({ components: [container('Dump', 'Attached as file.', 0x57F287)], files: [att], flags: V2_FLAG });
+        await interaction.editReply({ components: [container('Environment Dump', 'Output file attached below.', SUCCESS_COLOR, '[ dump file attached ]')], files: [att], flags: V2_FLAG });
       }
     } else if (commandName === 'spy') {
       const res = spyScript(code);
-      const summary = `**Webhooks:** ${res.webhooks.length}\n**Endpoints:** ${res.urls.length}\n**HTTP:** ${res.httpRequests.length}`;
-      await interaction.editReply({ components: [container('Spy Report', summary, 0x5865F2)], flags: V2_FLAG });
+      const summary = `Webhooks: ${res.webhooks.length}\nEndpoints: ${res.urls.length}\nHTTP Calls: ${res.httpRequests.length}`;
+      await interaction.editReply({ components: [container('Network Spy Report', summary, ACCENT_COLOR, '[ traffic captured ]')], flags: V2_FLAG });
     } else if (commandName === 'beautify') {
       const b = beautifyLua(code);
       if (b.length <= MAX_DISCORD_TEXT) {
-        await interaction.editReply({ components: [container('Beautified', `\`\`\`lua\n${b}\n\`\`\``, 0x57F287)], flags: V2_FLAG });
+        await interaction.editReply({ components: [container('Beautified Code', `\`\`\`lua\n${b}\n\`\`\``, SUCCESS_COLOR, '[ formatted ]')], flags: V2_FLAG });
       } else {
         const att = new AttachmentBuilder(Buffer.from(b, 'utf8'), { name: 'beautified.lua' });
-        await interaction.editReply({ components: [container('Beautified', 'Attached as file.', 0x57F287)], files: [att], flags: V2_FLAG });
+        await interaction.editReply({ components: [container('Beautified Code', 'Attached as file.', SUCCESS_COLOR, '[ formatted - file attached ]')], files: [att], flags: V2_FLAG });
       }
     } else if (commandName === 'minify') {
       const m = minifyLua(code);
       if (m.length <= MAX_DISCORD_TEXT) {
-        await interaction.editReply({ components: [container('Minified', `\`\`\`lua\n${m}\n\`\`\``, 0x57F287)], flags: V2_FLAG });
+        await interaction.editReply({ components: [container('Minified Code', `\`\`\`lua\n${m}\n\`\`\``, SUCCESS_COLOR, '[ minified ]')], flags: V2_FLAG });
       } else {
         const att = new AttachmentBuilder(Buffer.from(m, 'utf8'), { name: 'minified.lua' });
-        await interaction.editReply({ components: [container('Minified', 'Attached as file.', 0x57F287)], files: [att], flags: V2_FLAG });
+        await interaction.editReply({ components: [container('Minified Code', 'Attached as file.', SUCCESS_COLOR, '[ minified - file attached ]')], files: [att], flags: V2_FLAG });
       }
     } else if (commandName === 'rename') {
       const r = renameIdentifiers(code);
       if (r.code.length <= MAX_DISCORD_TEXT) {
-        await interaction.editReply({ components: [container('Renamed', `\`\`\`lua\n${r.code}\n\`\`\``, 0x57F287)], flags: V2_FLAG });
+        await interaction.editReply({ components: [container('Renamed Variables', `\`\`\`lua\n${r.code}\n\`\`\``, SUCCESS_COLOR, '[ renamed ]')], flags: V2_FLAG });
       } else {
         const att = new AttachmentBuilder(Buffer.from(r.code, 'utf8'), { name: 'renamed.lua' });
-        await interaction.editReply({ components: [container('Renamed', 'Attached as file.', 0x57F287)], files: [att], flags: V2_FLAG });
+        await interaction.editReply({ components: [container('Renamed Variables', 'Attached as file.', SUCCESS_COLOR, '[ renamed - file attached ]')], files: [att], flags: V2_FLAG });
       }
     } else if (commandName === 'paste') {
       const p = await uploadPaste(code);
-      await interaction.editReply({ components: [container('Paste', `Link: ${p.url}`, 0x57F287)], flags: V2_FLAG });
+      await interaction.editReply({ components: [container('Paste Uploaded', `Link: ${p.url}\nRaw: ${p.rawUrl}`, SUCCESS_COLOR, '[ upload success ]')], flags: V2_FLAG });
     }
   } catch (err) {
-    await interaction.editReply({ components: [errorContainer(err.message)], flags: V2_FLAG });
+    await replyError(interaction, err.message);
   }
 }
 

@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { PwfAuth } = require('./pwfauth');
+const { verifyLinkvertiseHash, getLinkvertiseUrl } = require('./linkvertise');
 
 const DB_PATH = path.join(__dirname, '..', '..', 'data', 'users.json');
 
@@ -19,7 +20,7 @@ class KeyManager {
         this.save();
       }
     } catch (e) {
-      console.error('Failed to load users database:', e);
+      console.error('[KeyManager] Failed to load users database:', e);
       this.users = {};
     }
   }
@@ -29,7 +30,7 @@ class KeyManager {
       fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
       fs.writeFileSync(DB_PATH, JSON.stringify(this.users, null, 2), 'utf8');
     } catch (e) {
-      console.error('Failed to save users database:', e);
+      console.error('[KeyManager] Failed to save users database:', e);
     }
   }
 
@@ -37,8 +38,7 @@ class KeyManager {
     if (process.env.KEY_GENERATOR_URL) {
       return `${process.env.KEY_GENERATOR_URL}?user=${userId}`;
     }
-    const pubId = process.env.LINKVERTISE_USER_ID || '10452071';
-    return `https://linkvertise.com/${pubId}/mommydeob-7day-key`;
+    return getLinkvertiseUrl(userId);
   }
 
   hasAccess(userId) {
@@ -72,38 +72,66 @@ class KeyManager {
     };
   }
 
-  async redeemKey(userId, licenseKey) {
+  async redeemKey(userId, inputToken) {
+    const clean = inputToken.trim();
+    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    // 1. Try Linkvertise Anti-Bypass verification first
+    const linkvertiseResult = await verifyLinkvertiseHash(clean);
+    if (linkvertiseResult.valid) {
+      const expiresAt = now + SEVEN_DAYS_MS;
+      this.users[String(userId)] = {
+        key: clean,
+        type: 'linkvertise_hash',
+        hwid: `discord_${userId}`,
+        redeemedAt: now,
+        expiresAt
+      };
+      this.save();
+      return {
+        success: true,
+        method: 'Linkvertise Anti-Bypass',
+        message: 'Linkvertise completion confirmed. Granted 7 days of mommy access.',
+        daysRemaining: 7,
+        expiresAt: new Date(expiresAt).toUTCString()
+      };
+    }
+
+    // 2. Fall back to PWFAuth license key check & login
     const hwid = `discord_${userId}`;
-    const res = await this.auth.login(licenseKey.trim(), hwid);
+    try {
+      const res = await this.auth.login(clean, hwid);
+      if (res && res.success) {
+        let expiresAt;
+        if (res.user && res.user.expires_at) {
+          expiresAt = new Date(res.user.expires_at).getTime();
+        } else {
+          expiresAt = now + SEVEN_DAYS_MS;
+        }
 
-    if (!res || !res.success) {
-      const msg = (res && res.message) || 'Invalid or expired key.';
-      throw new Error(msg);
-    }
+        this.users[String(userId)] = {
+          key: clean,
+          type: 'pwfauth_license',
+          hwid,
+          sessionId: res.session_id,
+          redeemedAt: now,
+          expiresAt
+        };
+        this.save();
 
-    let expiresAt;
-    if (res.user && res.user.expires_at) {
-      expiresAt = new Date(res.user.expires_at).getTime();
-    } else {
-      expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
-    }
+        const daysRemaining = Math.max(1, Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24)));
+        return {
+          success: true,
+          method: 'PWFAuth License',
+          message: 'PWFAuth license verified. Granted 7 days of mommy access.',
+          daysRemaining,
+          expiresAt: new Date(expiresAt).toUTCString()
+        };
+      }
+    } catch (_) {}
 
-    this.users[String(userId)] = {
-      key: licenseKey.trim(),
-      hwid,
-      sessionId: res.session_id,
-      redeemedAt: Date.now(),
-      expiresAt
-    };
-    this.save();
-
-    const daysRemaining = Math.max(1, Math.ceil((expiresAt - Date.now()) / (1000 * 60 * 60 * 24)));
-    return {
-      success: true,
-      message: res.message || 'Key activated successfully!',
-      daysRemaining,
-      expiresAt: new Date(expiresAt).toUTCString()
-    };
+    throw new Error('Pathetic. That key or hash is invalid or bypassed. Complete the linkvertise properly without cheat extensions, baka.');
   }
 }
 

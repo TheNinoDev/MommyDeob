@@ -27,7 +27,7 @@ const {
 } = require('./commands');
 
 const { handleDeobSelectMenu } = require('./features/deobfInteractive');
-const { container, V2_FLAG } = require('./utils/discordComponents');
+const { container, replyError, V2_FLAG, ACCENT_COLOR } = require('./utils/discordComponents');
 
 const PREFIXES = ['.', '/'];
 
@@ -42,10 +42,10 @@ const client = new Client({
 });
 
 client.once(Events.ClientReady, async (c) => {
-  console.log(`[MommyDeob] Logged in as ${c.user.tag}`);
+  console.log(`[MommyDeob] Online and hunting skids as ${c.user.tag}`);
 
   if (!process.env.CLIENT_ID || process.env.CLIENT_ID.includes('KEEP_SECRET')) {
-    console.warn('[MommyDeob] Warning: Valid CLIENT_ID not set in .env yet. Skipping slash command registration.');
+    console.warn('[MommyDeob] Notice: Valid CLIENT_ID not set in .env yet. Skipping slash registration.');
     return;
   }
 
@@ -58,16 +58,16 @@ client.once(Events.ClientReady, async (c) => {
         Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID.trim()),
         { body }
       );
-      console.log('[MommyDeob] Registered guild slash commands.');
+      console.log('[MommyDeob] Guild slash commands loaded.');
     } else {
       await rest.put(
         Routes.applicationCommands(process.env.CLIENT_ID),
         { body }
       );
-      console.log('[MommyDeob] Registered global slash commands.');
+      console.log('[MommyDeob] Global slash commands loaded.');
     }
   } catch (err) {
-    console.error('[MommyDeob] Slash command registration error:', err);
+    console.error('[MommyDeob] Slash registration error:', err.message);
   }
 });
 
@@ -115,8 +115,8 @@ client.on(Events.MessageCreate, async (message) => {
     else if (['minify'].includes(command)) {
       await handleMinifyCommand(message);
     }
-    // Paste
-    else if (['paste', 'p', 'pst', 'past'].includes(command)) {
+    // Paste / Post
+    else if (['paste', 'post', 'p', 'pst', 'past'].includes(command)) {
       await handlePasteCommand(message);
     }
     // Supported
@@ -135,45 +135,42 @@ client.on(Events.MessageCreate, async (message) => {
     }
     // Utility
     else if (['ping'].includes(command)) {
-      const comp = container('Pong', `Latency: ${client.ws.ping}ms`, 0x5865F2);
+      const comp = container('Latency', `Websocket: ${client.ws.ping}ms`, ACCENT_COLOR, '[ pong ]');
       await message.reply({ components: [comp], flags: V2_FLAG });
     }
     else if (['help'].includes(command)) {
       const comp = container(
-        '📜 MommyDeob Commands',
+        'MommyDeob Command Matrix',
         [
-          'Prefix `.` and slash `/` both work!',
+          'Prefix `.` and slash `/` both work.',
           '',
-          '**🔍 Deobfuscation & Analysis**',
-          '• `.deobf` / `.do` / `.deo` — Interactive panel with dropdown menu (detected engine on top!)',
-          '• `.dump` / `.l` / `.log` — Universal environment logger & constant dumper',
-          '• `.spy` — HTTP Spy: logs webhooks, HttpGet/Post, WebSockets, remotes, IPs',
-          '• `.detect` / `.d` — Detect obfuscator type with confidence',
+          '**Deobfuscation & Analysis**',
+          '• `.deobf` / `.do` / `.deo` — Devirtualizer panel with dropdown menu (detected engine on top)',
+          '• `.dump` / `.l` / `.log` — Universal environment logger and constant dumper',
+          '• `.spy` — HTTP Spy: exposes webhooks, endpoints, WebSockets, remotes',
+          '• `.detect` / `.d` — Identify obfuscator signatures with precision',
           '',
-          '**🧰 Tools**',
-          '• `.get <url>` — Fetch raw script from GitHub/Pastebin/Pastefy',
-          '• `.rename` / `.rn` — Rename unreadable identifiers into clean sequential names',
+          '**Tools**',
+          '• `.get <url>` — Download raw scripts from GitHub/Pastebin/Pastefy',
+          '• `.rename` / `.rn` — Clean ugly barcode variables into sequential identifiers',
           '• `.beautify` / `.b` — Format messy/minified Lua scripts',
           '• `.minify` — Strip comments and collapse whitespace',
-          '• `.paste` / `.p` — Upload code to Pastefy / Hastebin',
-          '• `.supported` — View supported obfuscators and feature status',
+          '• `.paste` / `.post` / `.p` — Upload code to Pastefy / Hastebin',
+          '• `.supported` — View obfuscator engine matrix',
           '',
-          '**💎 7-Day Key System (PWF Auth)**',
+          '**License & Anti-Bypass**',
           '• `.getkey` — Get your free 7-day access key',
-          '• `.redeem <KEY>` — Activate your key',
+          '• `.redeem <KEY_OR_HASH>` — Activate your key',
           '• `.status` — Check remaining days on your license'
         ].join('\n'),
-        0x5865F2
+        ACCENT_COLOR,
+        '[ mommydev control panel ]'
       );
       await message.reply({ components: [comp], flags: V2_FLAG });
     }
   } catch (err) {
     console.error(`[MommyDeob] Error executing ${command}:`, err);
-    try {
-      await message.reply({
-        content: `⚠️ An error occurred while executing that command: ${err.message}`
-      });
-    } catch (_) {}
+    await replyError(message, `Fatal execution fault: ${err.message}`);
   }
 });
 

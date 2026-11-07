@@ -8,9 +8,8 @@ const crypto = require('crypto');
 const { detect, detectName, getAllEngines } = require('../deobfuscator/detect');
 const { deobfuscateWeAreDevs } = require('../deobfuscator/wearedevs');
 const { dumpScript } = require('./dumper');
-const { container, errorContainer, V2_FLAG } = require('../utils/discordComponents');
+const { container, errorContainer, replyError, V2_FLAG, SUCCESS_COLOR, ACCENT_COLOR } = require('../utils/discordComponents');
 
-// Temporary cache for active sessions (5 minutes TTL)
 const activeSessions = new Map();
 
 function cleanOldSessions() {
@@ -35,7 +34,6 @@ function createDeobfuscatePanel(code, originalName = 'script.lua') {
     createdAt: Date.now()
   });
 
-  // Build select menu: detected engine is placed first!
   const engines = getAllEngines();
   const sortedEngines = [];
 
@@ -50,40 +48,39 @@ function createDeobfuscatePanel(code, originalName = 'script.lua') {
     }
   }
 
-  // Also include Universal Dumper option
   sortedEngines.push({
     id: 'dumper',
     name: 'Universal Environment Dumper',
-    desc: 'Dump constants, globals, and execution trace'
+    desc: 'Dump string tables, global calls and runtime trace'
   });
 
   const selectMenu = new StringSelectMenuBuilder()
     .setCustomId(`deob_select_${sessionId}`)
-    .setPlaceholder(`Detected: ${detectedTitle} (Select to execute)`);
+    .setPlaceholder(`Detected: ${detectedTitle} (Select engine)`);
 
-  sortedEngines.slice(0, 25).forEach((eng, idx) => {
+  sortedEngines.slice(0, 25).forEach((eng) => {
+    const label = eng.isDetected ? `[DETECTED] ${eng.name}` : eng.name;
     const opt = new StringSelectMenuOptionBuilder()
       .setValue(eng.id)
-      .setLabel(eng.isDetected ? `⭐ ${eng.name} (Detected)` : eng.name)
+      .setLabel(label.slice(0, 100))
       .setDescription((eng.desc || 'Deobfuscation engine').slice(0, 100));
 
-    if (idx === 0) {
-      opt.setDefault(false);
-    }
     selectMenu.addOptions(opt);
   });
 
   const row = new ActionRowBuilder().addComponents(selectMenu);
 
   const panelContainer = container(
-    'MommyDeob Deobfuscation Panel',
+    'MommyDeob Target Locked',
     [
-      `🔍 **Detected Obfuscator:** **${detectedTitle}** (\`${detectedId}\`)`,
-      `📄 **Script Size:** ${code.length.toLocaleString()} characters`,
+      `Target Obfuscator: **${detectedTitle}** (\`${detectedId}\`)`,
+      `Script Size: ${code.length.toLocaleString()} bytes`,
       '',
-      'Select the target obfuscator engine from the dropdown below to begin deobfuscation.'
+      'Ara ara... did a little skid really think this trash obfuscator would protect their code?',
+      'Pick an engine from the dropdown below and watch it get shredded.'
     ].join('\n'),
-    detectedId === 'wearedevs' ? 0x57F287 : 0x5865F2
+    ACCENT_COLOR,
+    '[ target analysis ready ]'
   );
 
   return {
@@ -101,11 +98,7 @@ async function handleDeobSelectMenu(interaction) {
   const session = activeSessions.get(sessionId);
 
   if (!session) {
-    await interaction.reply({
-      components: [errorContainer('This deobfuscation session has expired. Please run the command again.')],
-      flags: V2_FLAG,
-      ephemeral: true
-    });
+    await replyError(interaction, 'Session expired. Stop sleeping and run the command again, baka.');
     return;
   }
 
@@ -126,20 +119,20 @@ async function handleDeobSelectMenu(interaction) {
       const res = dumpScript(code);
       resultOutput = [
         '-- MommyDeob Universal Environment Dump',
+        '-- Cry about it skid',
         '',
         '-- [CONSTANTS FOUND]',
         ...(res.constants.map((c, i) => `[${i + 1}] = ${c}`)),
         '',
-        '-- [TRACE LOGS]',
+        '-- [EXECUTION TRACE]',
         ...res.trace
       ].join('\n');
       resultEngineName = 'Universal Dumper';
     } else {
-      // For engines not fully ported to AST yet, run the trace dumper
       const res = dumpScript(code);
       resultOutput = [
-        `-- Deobfuscation Engine: ${detectName(chosenEngine)}`,
-        '-- Notice: Running in trace & constant recovery mode',
+        `-- Engine: ${detectName(chosenEngine)}`,
+        '-- Running in full trace and constant recovery mode',
         '',
         '-- === String Constants ===',
         ...(res.constants.map((c, i) => `[${i + 1}] = ${c}`)),
@@ -150,13 +143,18 @@ async function handleDeobSelectMenu(interaction) {
       resultEngineName = `${detectName(chosenEngine)} (Trace Extraction)`;
     }
 
-    const header = `**Engine:** ${resultEngineName}\n**Input Size:** ${code.length} chars\n**Output Size:** ${resultOutput.length} chars`;
+    const header = [
+      `Engine: ${resultEngineName}`,
+      `Input: ${code.length} chars | Output: ${resultOutput.length} chars`,
+      'Deobfuscated successfully. Cry about it.'
+    ].join('\n');
 
     if (resultOutput.length <= 1800) {
       const resultComp = container(
-        'Deobfuscation Result',
+        'Script Shredded',
         `${header}\n\`\`\`lua\n${resultOutput}\n\`\`\``,
-        0x57F287
+        SUCCESS_COLOR,
+        '[ devirtualized ]'
       );
       await interaction.editReply({ components: [resultComp], flags: V2_FLAG });
     } else {
@@ -164,20 +162,17 @@ async function handleDeobSelectMenu(interaction) {
         name: 'deobfuscated.lua'
       });
       const resultComp = container(
-        'Deobfuscation Result',
-        `${header}\nResult is larger than 1,800 characters and has been attached as a file.`,
-        0x57F287
+        'Script Shredded',
+        `${header}\nOutput was too massive for your tiny screen. Attached as a file below.`,
+        SUCCESS_COLOR,
+        '[ devirtualized - file attached ]'
       );
       await interaction.editReply({ components: [resultComp], files: [attachment], flags: V2_FLAG });
     }
 
-    // Clean up session once finished
     activeSessions.delete(sessionId);
   } catch (err) {
-    await interaction.editReply({
-      components: [errorContainer(`Deobfuscation failed: ${err.message}`)],
-      flags: V2_FLAG
-    });
+    await replyError(interaction, `Deobfuscation failed: ${err.message}`);
   }
 }
 
