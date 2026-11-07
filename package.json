@@ -11,9 +11,7 @@
     "discord.js": "^14.18.0",
     "dotenv": "^16.4.5",
     "fengari": "^0.1.5",
-    "puppeteer": "^25.16.0",
-    "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2"
+    "linkvertise-bypasser": "^1.0.2"
   },
   "engines": {
     "node": ">=18"
