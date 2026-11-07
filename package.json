@@ -10,13 +10,9 @@
   "dependencies": {
     "discord.js": "^14.18.0",
     "dotenv": "^16.4.5",
-    "fengari": "^0.1.5",
-    "linkvertise-bypasser": "^1.0.2"
+    "fengari": "^0.1.5"
   },
   "engines": {
     "node": ">=18"
-  },
-  "allowScripts": {
-    "puppeteer@25.16.0": true
   }
 }
