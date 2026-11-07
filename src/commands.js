@@ -405,16 +405,11 @@ async function handleBypassCommand(message) {
       await message.reply({ components: [comp, row], flags: V2_FLAG });
     } else {
       const bypassCityUrl = `https://bypass.city/bypass?bypass=${encodeURIComponent(urlArg)}`;
-      const bypassLcUrl = 'https://bypass.lc/';
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setLabel('Open bypass.city')
           .setStyle(ButtonStyle.Link)
-          .setURL(bypassCityUrl),
-        new ButtonBuilder()
-          .setLabel('Open bypass.lc')
-          .setStyle(ButtonStyle.Link)
-          .setURL(bypassLcUrl)
+          .setURL(bypassCityUrl)
       );
 
       const comp = container(
@@ -424,7 +419,7 @@ async function handleBypassCommand(message) {
           '',
           result.reason,
           '',
-          'Headless browser could not solve the CAPTCHA automatically.',
+          'trw.lat could not bypass this link automatically.',
           'Click below to complete the bypass manually:'
         ].join('\n'),
         WARN_COLOR,
@@ -579,7 +574,7 @@ async function handleSupportedCommand(message) {
   const comp = container(
     'Supported Systems Matrix',
     [
-      '**🔗 Bypass Sites (bypass.city + bypass.lc merged):**',
+      '**🔗 Bypass Sites (bypass.city + trw.lat merged):**',
       bypassSites.map(s => `• ${s}`).join('\n'),
       '',
       '**🛡️ Obfuscator Engines:**',
@@ -809,7 +804,7 @@ async function handleSlash(interaction) {
     const comp = container(
       'Supported Systems Matrix',
       [
-        '**🔗 Bypass Sites (bypass.city + bypass.lc merged):**',
+        '**🔗 Bypass Sites (bypass.city + trw.lat merged):**',
         bypassSites.map(s => `• ${s}`).join('\n'),
         '',
         '**🛡️ Obfuscator Engines:**',
@@ -937,14 +932,12 @@ async function handleSlash(interaction) {
         await interaction.editReply({ components: [comp, row], flags: V2_FLAG });
       } else {
         const bypassCityUrl = `https://bypass.city/bypass?bypass=${encodeURIComponent(code)}`;
-        const bypassLcUrl = 'https://bypass.lc/';
         const row = new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setLabel('Open bypass.city').setStyle(ButtonStyle.Link).setURL(bypassCityUrl),
-          new ButtonBuilder().setLabel('Open bypass.lc').setStyle(ButtonStyle.Link).setURL(bypassLcUrl)
+          new ButtonBuilder().setLabel('Open bypass.city').setStyle(ButtonStyle.Link).setURL(bypassCityUrl)
         );
         const comp = container(
           'Bypass Requires Manual Completion',
-          `Target URL: ${code}\n\n${result.reason}\n\nHeadless browser could not solve the CAPTCHA automatically. Click below to complete the bypass manually:`,
+          `Target URL: ${code}\n\n${result.reason}\n\ntrw.lat could not bypass this link automatically. Click below to complete manually:`,
           WARN_COLOR,
           '[ manual captcha required ]'
         );
