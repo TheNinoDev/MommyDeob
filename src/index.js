@@ -1,6 +1,32 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Partials, Events, REST, Routes } = require('discord.js');
-const { handleDeobfuscateMessage, handleDetectMessage, handleSlash, slashCommands } = require('./commands');
+const {
+  Client,
+  GatewayIntentBits,
+  Partials,
+  Events,
+  REST,
+  Routes
+} = require('discord.js');
+
+const {
+  handleDeobfCommand,
+  handleDumpCommand,
+  handleSpyCommand,
+  handleDetectCommand,
+  handleGetCommand,
+  handleRenameCommand,
+  handleBeautifyCommand,
+  handleMinifyCommand,
+  handlePasteCommand,
+  handleSupportedCommand,
+  handleGetKeyCommand,
+  handleRedeemCommand,
+  handleStatusCommand,
+  handleSlash,
+  slashCommands
+} = require('./commands');
+
+const { handleDeobSelectMenu } = require('./features/deobfInteractive');
 const { container, V2_FLAG } = require('./utils/discordComponents');
 
 const PREFIXES = ['.', '/'];
@@ -16,55 +42,161 @@ const client = new Client({
 });
 
 client.once(Events.ClientReady, async (c) => {
-  console.log(`Logged in as ${c.user.tag}`);
+  console.log(`[MommyDeob] Logged in as ${c.user.tag}`);
+
+  if (!process.env.CLIENT_ID || process.env.CLIENT_ID.includes('KEEP_SECRET')) {
+    console.warn('[MommyDeob] Warning: Valid CLIENT_ID not set in .env yet. Skipping slash command registration.');
+    return;
+  }
+
   try {
     const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
-    const body = slashCommands.map((c) => c.toJSON());
-    if (process.env.GUILD_ID) {
-      await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID), { body });
-      console.log('Registered guild slash commands.');
+    const body = slashCommands.map((cmd) => cmd.toJSON());
+
+    if (process.env.GUILD_ID && process.env.GUILD_ID.trim()) {
+      await rest.put(
+        Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID.trim()),
+        { body }
+      );
+      console.log('[MommyDeob] Registered guild slash commands.');
     } else {
-      await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body });
-      console.log('Registered global slash commands.');
+      await rest.put(
+        Routes.applicationCommands(process.env.CLIENT_ID),
+        { body }
+      );
+      console.log('[MommyDeob] Registered global slash commands.');
     }
-  } catch (e) {
-    console.error('Command registration failed:', e);
+  } catch (err) {
+    console.error('[MommyDeob] Slash command registration error:', err);
   }
 });
 
 client.on(Events.MessageCreate, async (message) => {
   if (message.author.bot) return;
+
   const content = message.content || '';
   const prefix = PREFIXES.find((p) => content.startsWith(p));
   if (!prefix) return;
-  // strip prefix
-  const without = content.slice(prefix.length).trim();
-  const [cmd, ...rest] = without.split(/\s+/);
-  const command = (cmd || '').toLowerCase();
-  // reconstruct message content without prefix for handlers (they expect full content)
-  if (command === 'deobfuscate' || command === 'deob' || command === 'deobf') {
-    await handleDeobfuscateMessage(message);
-  } else if (command === 'detect') {
-    await handleDetectMessage(message);
-  } else if (command === 'ping') {
-    const comp = container('Pong', `Latency: ${client.ws.ping}ms`, 0x5865F2);
-    await message.reply({ components: [comp], flags: V2_FLAG });
-  } else if (command === 'help') {
-    const comp = container('MommyDeob Help', [
-      '**Commands (prefix `.` or `/`):**',
-      '• `deobfuscate` — deobfuscate a script',
-      '• `detect` — detect obfuscator type',
-      '• `ping` — bot latency',
-      '',
-      '**Supported:** WeAreDevs / Prometheus-style.'
-    ].join('\n'), 0x5865F2);
-    await message.reply({ components: [comp], flags: V2_FLAG });
+
+  const withoutPrefix = content.slice(prefix.length).trim();
+  const [cmdToken] = withoutPrefix.split(/\s+/);
+  const command = (cmdToken || '').toLowerCase();
+
+  try {
+    // Deobfuscate
+    if (['deobf', 'deob', 'deo', 'do', 'deobfuscate'].includes(command)) {
+      await handleDeobfCommand(message);
+    }
+    // Dumper / Logger
+    else if (['dump', 'l', 'log'].includes(command)) {
+      await handleDumpCommand(message);
+    }
+    // HTTP Spy
+    else if (['spy'].includes(command)) {
+      await handleSpyCommand(message);
+    }
+    // Detect
+    else if (['detect', 'd', 'dtc'].includes(command)) {
+      await handleDetectCommand(message);
+    }
+    // Script Fetcher
+    else if (['get', 'g'].includes(command)) {
+      await handleGetCommand(message);
+    }
+    // Identifier Renamer
+    else if (['rename', 'rn', 'r'].includes(command)) {
+      await handleRenameCommand(message);
+    }
+    // Lua Beautifier
+    else if (['beautify', 'b', 'btf'].includes(command)) {
+      await handleBeautifyCommand(message);
+    }
+    // Lua Minifier
+    else if (['minify'].includes(command)) {
+      await handleMinifyCommand(message);
+    }
+    // Paste
+    else if (['paste', 'p', 'pst', 'past'].includes(command)) {
+      await handlePasteCommand(message);
+    }
+    // Supported
+    else if (['supported'].includes(command)) {
+      await handleSupportedCommand(message);
+    }
+    // Key system
+    else if (['getkey', 'key'].includes(command)) {
+      await handleGetKeyCommand(message);
+    }
+    else if (['redeem'].includes(command)) {
+      await handleRedeemCommand(message);
+    }
+    else if (['status'].includes(command)) {
+      await handleStatusCommand(message);
+    }
+    // Utility
+    else if (['ping'].includes(command)) {
+      const comp = container('Pong', `Latency: ${client.ws.ping}ms`, 0x5865F2);
+      await message.reply({ components: [comp], flags: V2_FLAG });
+    }
+    else if (['help'].includes(command)) {
+      const comp = container(
+        '📜 MommyDeob Commands',
+        [
+          'Prefix `.` and slash `/` both work!',
+          '',
+          '**🔍 Deobfuscation & Analysis**',
+          '• `.deobf` / `.do` / `.deo` — Interactive panel with dropdown menu (detected engine on top!)',
+          '• `.dump` / `.l` / `.log` — Universal environment logger & constant dumper',
+          '• `.spy` — HTTP Spy: logs webhooks, HttpGet/Post, WebSockets, remotes, IPs',
+          '• `.detect` / `.d` — Detect obfuscator type with confidence',
+          '',
+          '**🧰 Tools**',
+          '• `.get <url>` — Fetch raw script from GitHub/Pastebin/Pastefy',
+          '• `.rename` / `.rn` — Rename unreadable identifiers into clean sequential names',
+          '• `.beautify` / `.b` — Format messy/minified Lua scripts',
+          '• `.minify` — Strip comments and collapse whitespace',
+          '• `.paste` / `.p` — Upload code to Pastefy / Hastebin',
+          '• `.supported` — View supported obfuscators and feature status',
+          '',
+          '**💎 7-Day Key System (PWF Auth)**',
+          '• `.getkey` — Get your free 7-day access key',
+          '• `.redeem <KEY>` — Activate your key',
+          '• `.status` — Check remaining days on your license'
+        ].join('\n'),
+        0x5865F2
+      );
+      await message.reply({ components: [comp], flags: V2_FLAG });
+    }
+  } catch (err) {
+    console.error(`[MommyDeob] Error executing ${command}:`, err);
+    try {
+      await message.reply({
+        content: `⚠️ An error occurred while executing that command: ${err.message}`
+      });
+    } catch (_) {}
   }
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
-  await handleSlash(interaction);
+  try {
+    if (interaction.isStringSelectMenu()) {
+      if (interaction.customId.startsWith('deob_select_')) {
+        await handleDeobSelectMenu(interaction);
+      }
+    } else if (interaction.isChatInputCommand()) {
+      await handleSlash(interaction);
+    }
+  } catch (err) {
+    console.error('[MommyDeob] Interaction error:', err);
+  }
 });
 
-client.login(process.env.DISCORD_TOKEN);
+if (process.env.DISCORD_TOKEN && !process.env.DISCORD_TOKEN.includes('KEEP_SECRET')) {
+  client.login(process.env.DISCORD_TOKEN).catch(err => {
+    console.error('[MommyDeob] Discord login failed:', err.message);
+  });
+} else {
+  console.log('[MommyDeob] DISCORD_TOKEN is set to placeholder in .env. Ready for your actual token.');
+}
+
+module.exports = { client };

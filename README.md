@@ -1,44 +1,65 @@
-# MommyDeob
+# MommyDeob 🌸
 
-A Discord bot (JavaScript) that deobfuscates Roblox Luau scripts.  
-Commands work with both `.` and `/` prefixes. Replies use **Discord v2 components** (containers).
+A Discord bot for analyzing, dumping, and deobfuscating Roblox Luau scripts.  
+Supports both `.` and `/` prefixes and uses modern **Discord v2 components** (containers & action rows).
 
-## Supported obfuscators
+---
 
-| Obfuscator | Status |
-|---|---|
-| WeAreDevs / Prometheus-style (trace-based) | ✅ Supported |
-| Luraph | ❌ Detected only |
-| Moonsec | ❌ Detected only |
-| Ironbrew | ❌ Detected only |
-| LuaArmor | ❌ Detected only |
+## 📜 Commands
 
-## Setup
+### 🔍 Deobfuscation & Analysis
+- **`.deobf`** / **`.do`** / **`.deo`** / **`/deobfuscate`** — Interactive Deobfuscation panel with a dropdown select menu. Detects the obfuscator automatically and places the detected engine right at the top of the dropdown!
+- **`.dump`** / **`.l`** / **`.log`** / **`/dump`** — Universal environment logger and constant dumper.
+- **`.spy`** / **`/spy`** — HTTP & Network spy: sandbox execution that intercepts `HttpGet`, `HttpPost`, `request`, `WebSocket`, `FireServer`, extracting Discord webhooks, endpoints, and IPs.
+- **`.detect`** / **`.d`** / **`.dtc`** / **`/detect`** — Identifies which obfuscator a script is using (WeAreDevs/Prometheus, Luraph, MoonSec, IronBrew, PSU, LuaArmor, 77fuscator, Goofyscator).
 
-```bash
-npm install
-cp .env.example .env
-# fill DISCORD_TOKEN, CLIENT_ID, optional GUILD_ID
-npm start
-```
+### 🧰 Tools
+- **`.get <URL>`** / **`.g`** — Automatically fetches raw code from GitHub, Pastebin, Pastefy, Rentry, etc.
+- **`.rename`** / **`.rn`** / **`.r`** — Renames unreadable barcode/hex identifiers (`lIllI1`, `_0x1a4f`) into clean sequential names (`var_1`, `var_2`).
+- **`.beautify`** / **`.b`** / **`.btf`** — Indents and cleans up compressed or messy Luau code.
+- **`.minify`** — Removes comments and strips unneeded whitespace.
+- **`.paste`** / **`.p`** — Uploads a script to Pastefy / Hastebin and provides a shareable URL.
+- **`.supported`** — Displays a table of all supported obfuscators and tools.
 
-## Usage
+### 💎 7-Day Key System (PWF Auth)
+- **`.getkey`** / **`.key`** — Generates a Linkvertise link for a free 7-day license key.
+- **`.redeem <KEY>`** — Activates your key with PWF Auth.
+- **`.status`** — Checks how many days remain on your active key.
 
-- `.deobfuscate` / `/deobfuscate` with a `.lua`/`.txt` attachment or a code block.
-- `.detect` / `/detect` to identify the obfuscator.
-- `.help`, `.ping`.
+---
 
-## How deobfuscation works
+## 🛡️ Supported Obfuscators
 
-WeAreDevs-style scripts are VM-based: the original code is hidden behind a string table and a bytecode interpreter. This project runs the script inside a **mock Luau environment** (via `fengari`) that logs every access, call, property set, print and `loadstring`, then reconstructs readable Luau from that trace. This is the same approach as the Python "Prometheus-WeAreDevs-Dumper".
+| Obfuscator | Status | Method |
+|---|---|---|
+| **WeAreDevs / Prometheus** | ✅ Full Support | Trace Emulation & AST Reconstruction |
+| **Universal Dumper (.l)** | ✅ Full Support | Fengari sandbox & constant table dumper |
+| **HTTP Spy (.spy)** | ✅ Full Support | Webhook, URL, and remote call extraction |
+| **Luraph (V14/V15)** | 🔄 Detect & Dump | Engine detection + trace recovery |
+| **MoonSec (V2/V3)** | 🔄 Detect & Dump | Engine detection + trace recovery |
+| **IronBrew2 / Ironveil** | 🔄 Detect & Dump | Engine detection + trace recovery |
+| **PSU Obfuscator** | 🔄 Detect & Dump | Engine detection + trace recovery |
+| **LuaArmor** | 🔄 Detect & Dump | Engine detection + trace recovery |
+| **77fuscator / Goofyscator** | 🔄 Detect & Dump | Engine detection + trace recovery |
 
-## Adding a new obfuscator
+---
 
-1. Add a signature to `src/deobfuscator/detect.js`.
-2. Implement a deobfuscator module in `src/deobfuscator/` and wire it in `src/deobfuscator/index.js`.
-3. Add it to the supported table above.
+## 🚀 Setup & Hosting
 
-## On auto-detection / auto-deobfuscation
-
-Detecting the obfuscator from a sample is **easy** (signature matching on keywords/structure).  
-Building a deobfuscator for an *unknown* obfuscator automatically is **hard**: each obfuscator uses a different VM, string encoding and control-flow scheme. A fully automatic approach would need a generic Lua trace engine plus heuristics, which is feasible for "access/call logging" but not for perfect reconstruction. Realistically you detect by signature, then write a targeted deobfuscator per family.
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Configure `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+   Fill in your `DISCORD_TOKEN`, `CLIENT_ID`, and optional `GUILD_ID`.
+3. Start the bot:
+   ```bash
+   npm start
+   ```
+   Or in development with auto-reload:
+   ```bash
+   npm run dev
+   ```
