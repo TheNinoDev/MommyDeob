@@ -10,21 +10,21 @@ function renderCrazyKeyPage(key) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MOMMYDEOB // QUANTUM VIP ACCESS PASS</title>
+  <title>MOMMYDEOB // VIP ACCESS PASS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700;800&family=JetBrains+Mono:wght@400;600;800&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Space+Grotesk:wght@500;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
   <style>
     ${ticketStyles}
   </style>
 </head>
 <body>
-  <!-- Fullscreen Canvas VFX Layers -->
+  <!-- Fullscreen Background Canvas VFX Layers -->
   <canvas id="warp-canvas"></canvas>
   <div class="cyber-grid-floor"></div>
   <div class="cyber-grid-ceiling"></div>
 
-  <!-- Giant 3D Holographic Gyroscope Orbital Rings -->
+  <!-- 3D Holographic Gyroscope Orbital Rings -->
   <div class="hologram-rings">
     <div class="gyro-ring"></div>
     <div class="gyro-ring"></div>
@@ -36,7 +36,7 @@ function renderCrazyKeyPage(key) {
   <div class="ambient-orb" id="orb2"></div>
   <div class="ambient-orb" id="orb3"></div>
 
-  <!-- Scanlines + Vignette -->
+  <!-- Scanlines + CRT Vignette -->
   <div class="scanlines"></div>
   <div class="vignette"></div>
 
@@ -54,17 +54,17 @@ function renderCrazyKeyPage(key) {
   <!-- Cyber Radar Widget (Bottom Left) -->
   <div class="cyber-radar">
     <div class="radar-sweep"></div>
-    <div class="radar-ring" style="width: 30px; height: 30px;"></div>
-    <div class="radar-ring" style="width: 60px; height: 60px;"></div>
+    <div class="radar-ring" style="width: 28px; height: 28px;"></div>
+    <div class="radar-ring" style="width: 56px; height: 56px;"></div>
     <div class="radar-blip"></div>
   </div>
 
-  <!-- Cyber HUD Telemetry Bar -->
+  <!-- Top Cyber HUD Telemetry Bar -->
   <div class="cyber-hud-top">
     <div class="hud-left">
       <div class="hud-chip">
         <div class="hud-dot"></div>
-        <span>SECURITY: ANTI-BYPASS VERIFIED</span>
+        <span>SECURITY: ANTI-BYPASS ENFORCED</span>
       </div>
       <div class="hud-chip">
         <span id="liveClock">TIME: --:--:-- UTC</span>
@@ -83,14 +83,14 @@ function renderCrazyKeyPage(key) {
       <button class="hud-action-btn" id="bgmToggle">BGM: OFF</button>
       <button class="hud-action-btn" id="audioToggle">SFX: ON</button>
       <div class="hud-chip">
-        <span>FPS: <span id="fpsCounter" style="color:#00f2fe">60</span></span>
+        <span>FPS: <span id="fpsCounter" style="color:#00f0ff">60</span></span>
       </div>
     </div>
   </div>
 
   <!-- 3D Scene Wrapper -->
   <div class="scene-wrapper" id="sceneWrapper">
-    <!-- THE FUTURISTIC TICKET PASS -->
+    <!-- THE ARCHITECTURAL VIP ACCESS TICKET -->
     <div class="ticket-container" id="ticketCard">
       <div class="guilloche-bg"></div>
       <div class="holo-foil-overlay" id="holoFoil"></div>
@@ -101,70 +101,97 @@ function renderCrazyKeyPage(key) {
 
       <!-- Main Ticket Body -->
       <div class="ticket-main">
-        <div class="ticket-header">
-          <div class="ticket-brand">
-            <div class="brand-title">MOMMYDEOB</div>
-            <div class="brand-sub">QUANTUM SECURITY // ACCESS PROTOCOL</div>
+        <!-- Technical Upper Deck -->
+        <div class="ticket-top-deck">
+          <div class="deck-item">
+            <span>PASS:</span>
+            <span class="deck-val">MMY-${shortSerial}-7D</span>
           </div>
-          <div class="badge-wrap">
-            <div class="vip-badge">VIP PASS #7D</div>
+          <div class="deck-item">
+            <span>GATE:</span>
+            <span class="deck-val">DISCORD-PRIMARY</span>
+          </div>
+          <div class="deck-item">
+            <span>TIER:</span>
+            <span class="deck-val" style="color:#00f0ff;">LEVEL-5</span>
           </div>
         </div>
 
-        <!-- 3D Key Presentation Box with Scramble Animation -->
+        <!-- Editorial Masthead -->
+        <div class="ticket-header">
+          <div class="ticket-brand">
+            <h1 class="brand-title">MOMMYDEOB</h1>
+            <div class="brand-sub">// QUANTUM VIP ACCESS PROTOCOL</div>
+          </div>
+          <div class="badge-wrap">
+            <div class="vip-badge">VIP PASS #7D</div>
+            <div class="pass-type-tag">TIME-LOCKED // 168H</div>
+          </div>
+        </div>
+
+        <!-- The Recessed Key Vault -->
         <div class="key-box-3d">
           <div class="key-label-row">
             <span>ONE-TIME QUANTUM ACCESS KEY</span>
-            <span style="color:#00f2fe;">ACTIVE // 168 HOURS</span>
+            <span style="color:#00f0ff;">CRYPTOGRAPHICALLY VERIFIED</span>
           </div>
           <div class="key-value" id="keyDisplay">${key}</div>
         </div>
 
-        <!-- Copy Command Box -->
+        <!-- Command Console Box -->
         <div class="cmd-box">
           <span class="cmd-prefix">DISCORD REDEEM:</span>
           <span>${redeemCommand}</span>
         </div>
 
-        <!-- Cyber Redeem Button -->
+        <!-- Industrial Trigger Release Button -->
         <button class="btn-redeem" id="copyBtn" onclick="copyRedeem(event)">
-          <span id="btnLabel">Copy Redeem Command</span>
+          <span id="btnLabel">EXECUTE REDEEM SYNC</span>
         </button>
 
-        <!-- Security Microprint Thread -->
-        <div class="micro-security">
-          <span>SERIAL: SEC-MMY-${shortSerial}</span>
-          <span>GATE: ANTI-BYPASS VERIFIED</span>
-          <span>EXPIRY: 7 DAYS</span>
+        <!-- Technical Specification Micro-Grid -->
+        <div class="tech-meta-grid">
+          <div class="meta-col">
+            <span class="meta-label">CLEARANCE</span>
+            <span class="meta-value">UNRESTRICTED</span>
+          </div>
+          <div class="meta-col">
+            <span class="meta-label">VALIDITY</span>
+            <span class="meta-value">168 HOURS (7D)</span>
+          </div>
+          <div class="meta-col">
+            <span class="meta-label">ANTI-BYPASS</span>
+            <span class="meta-value" style="color:#00f0ff;">LINKVERTISE VALID</span>
+          </div>
         </div>
       </div>
 
-      <!-- Perforated Tear-off Stub with Interactive Detach Physics -->
+      <!-- Perforated Tear-off Stub (Mechanical Precision) -->
       <div class="ticket-stub" id="ticketStub" title="Click to tear or re-attach stub!">
         <div class="stub-tag">VIP STUB</div>
 
-        <!-- Holographic Seal -->
+        <!-- Holographic VIP Seal -->
         <div class="holo-seal">
-          <div class="seal-inner">GENUINE<br>VIP PASS</div>
+          <div class="seal-inner">AUTHENTIC<br>VIP PASS</div>
         </div>
 
-        <!-- Cyber Barcode -->
+        <!-- Precision Barcode -->
         <div class="barcode-wrap">
           <div class="cyber-barcode"></div>
           <div class="barcode-serial">MMY-${shortSerial}-7D-VIP</div>
         </div>
 
-        <!-- Stub Telemetry & Interactive Tear Prompt -->
+        <!-- Stub Telemetry & Interactive Tear Hint -->
         <div class="stub-meta">
           <div>NODE: CLOUD-MAIN</div>
           <div>GATE: DISCORD-BOT</div>
           <div>SEAT: 001-ALPHA</div>
-          <div class="stub-tear-hint">[ CLICK TO TEAR STUB ]</div>
+          <div class="stub-tear-hint">[ CLICK TO DETACH STUB ]</div>
         </div>
       </div>
     </div>
 
-    <!-- FLOATING HOLOGRAPHIC COMPANION POD (GIF INTEGRATION) -->
+    <!-- HOLOGRAPHIC COMPANION CONSOLE (Tactical Cyberpod) -->
     <div class="holo-companion-card" id="holoCompanion">
       <div class="companion-dialogue" id="companionDialogue">Here's your VIP key, baka!</div>
       <div class="companion-hud-header">

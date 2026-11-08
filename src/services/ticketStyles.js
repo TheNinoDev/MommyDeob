@@ -1,30 +1,47 @@
 const ticketStyles = `
   :root {
-    --accent: #e0115f;
-    --accent-bright: #ff2a7a;
-    --accent-glow: rgba(224, 17, 95, 0.75);
-    --cyan: #00f2fe;
-    --cyan-glow: rgba(0, 242, 254, 0.6);
-    --purple: #9d4edd;
-    --gold: #ffd700;
-    --gold-glow: rgba(255, 215, 0, 0.65);
-    --bg: #020205;
-    --ticket-bg: rgba(10, 11, 22, 0.94);
+    --void: #030407;
+    --chassis: #090a0f;
+    --plate: #0e111a;
+    --plate-hover: #141824;
+    --plate-border: rgba(255, 255, 255, 0.09);
+    --plate-border-active: rgba(255, 0, 85, 0.45);
+    
+    --carmine: #ff0055;
+    --carmine-bright: #ff2a70;
+    --carmine-glow: rgba(255, 0, 85, 0.55);
+    
+    --cyan: #00f0ff;
+    --cyan-glow: rgba(0, 240, 255, 0.55);
+    
+    --amber: #ffaa00;
+    --amber-glow: rgba(255, 170, 0, 0.5);
+    
+    --text-primary: #ffffff;
+    --text-secondary: #8b95a5;
+    --text-tertiary: #4d5566;
+    
     --holo-angle: 135deg;
     --warp-speed: 7;
   }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    -webkit-font-smoothing: antialiased;
+  }
 
   body {
-    background: var(--bg);
-    color: #f1f5f9;
+    background: var(--void);
+    color: var(--text-primary);
     font-family: 'Space Grotesk', -apple-system, sans-serif;
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 30px 20px;
+    padding: 32px 20px;
     overflow-x: hidden;
     perspective: 1600px;
     cursor: crosshair;
@@ -46,20 +63,20 @@ const ticketStyles = `
     pointer-events: none;
   }
   #warp-canvas { z-index: 0; opacity: 0.65; }
-  #matrix-canvas { z-index: 1; opacity: 0.22; }
+  #matrix-canvas { z-index: 1; opacity: 0.2; }
   #particles-canvas { z-index: 2; }
   #shockwave-canvas { z-index: 997; }
   #cursor-trail-canvas { z-index: 998; }
   #confetti-canvas { z-index: 1000; }
 
-  /* 3D Infinity Cyber Grids */
+  /* 3D Infinity Cyber Grids - Floor and Ceiling */
   .cyber-grid-floor {
     position: fixed;
     inset: -50%;
     background-size: 60px 60px;
     background-image: 
-      linear-gradient(to right, rgba(224, 17, 95, 0.16) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(224, 17, 95, 0.16) 1px, transparent 1px);
+      linear-gradient(to right, rgba(255, 0, 85, 0.14) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 0, 85, 0.14) 1px, transparent 1px);
     transform: perspective(500px) rotateX(75deg) translateZ(-60px);
     pointer-events: none;
     z-index: 1;
@@ -75,8 +92,8 @@ const ticketStyles = `
     inset: -50%;
     background-size: 60px 60px;
     background-image: 
-      linear-gradient(to right, rgba(0, 242, 254, 0.09) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(0, 242, 254, 0.09) 1px, transparent 1px);
+      linear-gradient(to right, rgba(0, 240, 255, 0.08) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0, 240, 255, 0.08) 1px, transparent 1px);
     transform: perspective(500px) rotateX(-75deg) translateZ(-60px);
     pointer-events: none;
     z-index: 1;
@@ -90,8 +107,8 @@ const ticketStyles = `
   /* 3D Holographic Gyroscope Orbital Rings */
   .hologram-rings {
     position: fixed;
-    width: 800px;
-    height: 800px;
+    width: 820px;
+    height: 820px;
     pointer-events: none;
     z-index: 2;
     transform-style: preserve-3d;
@@ -101,37 +118,37 @@ const ticketStyles = `
     position: absolute;
     inset: 0;
     border-radius: 50%;
-    border: 1.5px dashed rgba(224, 17, 95, 0.35);
-    box-shadow: 0 0 35px rgba(224, 17, 95, 0.25);
+    border: 1px dashed rgba(255, 0, 85, 0.3);
+    box-shadow: 0 0 35px rgba(255, 0, 85, 0.18);
   }
   .gyro-ring:nth-child(1) { transform: rotateX(72deg) rotateY(25deg); animation: ringSpin1 14s linear infinite; }
-  .gyro-ring:nth-child(2) { transform: rotateX(-55deg) rotateY(50deg); border-color: rgba(0, 242, 254, 0.35); box-shadow: 0 0 35px rgba(0, 242, 254, 0.25); animation: ringSpin2 18s linear infinite reverse; }
-  .gyro-ring:nth-child(3) { transform: rotateY(80deg); border-color: rgba(157, 78, 221, 0.35); box-shadow: 0 0 35px rgba(157, 78, 221, 0.25); animation: ringSpin3 16s linear infinite; }
+  .gyro-ring:nth-child(2) { transform: rotateX(-55deg) rotateY(50deg); border-color: rgba(0, 240, 255, 0.3); box-shadow: 0 0 35px rgba(0, 240, 255, 0.18); animation: ringSpin2 18s linear infinite reverse; }
+  .gyro-ring:nth-child(3) { transform: rotateY(80deg); border-color: rgba(255, 170, 0, 0.25); box-shadow: 0 0 35px rgba(255, 170, 0, 0.15); animation: ringSpin3 16s linear infinite; }
 
   @keyframes gyroRotate { 0% { transform: rotateZ(0deg); } 100% { transform: rotateZ(360deg); } }
   @keyframes ringSpin1 { 0% { transform: rotateX(72deg) rotateY(25deg) rotateZ(0deg); } 100% { transform: rotateX(72deg) rotateY(25deg) rotateZ(360deg); } }
   @keyframes ringSpin2 { 0% { transform: rotateX(-55deg) rotateY(50deg) rotateZ(0deg); } 100% { transform: rotateX(-55deg) rotateY(50deg) rotateZ(360deg); } }
   @keyframes ringSpin3 { 0% { transform: rotateY(80deg) rotateZ(0deg); } 100% { transform: rotateY(80deg) rotateZ(360deg); } }
 
-  /* Ambient Lighting Orbs */
+  /* Dynamic Colored Lighting Orbs */
   .ambient-orb {
     position: fixed;
     border-radius: 50%;
-    filter: blur(110px);
+    filter: blur(120px);
     pointer-events: none;
     z-index: 2;
-    opacity: 0.45;
+    opacity: 0.4;
     transition: transform 0.15s ease-out;
   }
-  #orb1 { width: 620px; height: 620px; background: radial-gradient(circle, #e0115f, transparent 70%); top: -12%; left: -10%; }
-  #orb2 { width: 560px; height: 560px; background: radial-gradient(circle, #00f2fe, transparent 70%); bottom: -12%; right: -10%; }
-  #orb3 { width: 480px; height: 480px; background: radial-gradient(circle, #9d4edd, transparent 70%); top: 50%; left: 50%; }
+  #orb1 { width: 620px; height: 620px; background: radial-gradient(circle, #ff0055, transparent 70%); top: -14%; left: -10%; }
+  #orb2 { width: 560px; height: 560px; background: radial-gradient(circle, #00f0ff, transparent 70%); bottom: -14%; right: -10%; }
+  #orb3 { width: 480px; height: 480px; background: radial-gradient(circle, #ffaa00, transparent 70%); top: 50%; left: 50%; }
 
-  /* Scanlines and Vignette */
+  /* CRT Scanlines and Heavy Vignette */
   .scanlines {
     position: fixed;
     inset: 0;
-    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.45) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.45) 50%), linear-gradient(90deg, rgba(255, 0, 85, 0.02), rgba(0, 240, 255, 0.01), rgba(255, 0, 85, 0.02));
     background-size: 100% 3px, 6px 100%;
     pointer-events: none;
     z-index: 990;
@@ -140,12 +157,14 @@ const ticketStyles = `
   .vignette {
     position: fixed;
     inset: 0;
-    box-shadow: inset 0 0 170px rgba(0, 0, 0, 0.94);
+    box-shadow: inset 0 0 180px rgba(0, 0, 0, 0.95);
     pointer-events: none;
     z-index: 991;
   }
 
-  /* Cyber HUD Telemetry Bar */
+  /* =========================================================
+     TOP CYBER HUD BAR (Architectural, High-Precision)
+     ========================================================= */
   .cyber-hud-top {
     position: fixed;
     top: 18px;
@@ -155,78 +174,79 @@ const ticketStyles = `
     justify-content: space-between;
     align-items: center;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    letter-spacing: 2px;
-    color: rgba(255, 255, 255, 0.7);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--text-secondary);
     z-index: 100;
   }
   .hud-left, .hud-right {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: wrap;
   }
   .hud-chip {
-    background: rgba(10, 11, 24, 0.85);
-    border: 1px solid rgba(224, 17, 95, 0.45);
-    padding: 6px 14px;
-    border-radius: 99px;
+    background: rgba(9, 10, 15, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 5px 12px;
+    border-radius: 2px;
     backdrop-filter: blur(12px);
     display: flex;
     align-items: center;
     gap: 8px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
   }
   .hud-dot {
-    width: 7px;
-    height: 7px;
-    background: #00f2fe;
+    width: 6px;
+    height: 6px;
+    background: var(--cyan);
     border-radius: 50%;
-    box-shadow: 0 0 10px #00f2fe;
+    box-shadow: 0 0 8px var(--cyan);
     animation: hudBlink 1.4s infinite alternate;
   }
-  @keyframes hudBlink { 0% { opacity: 0.3; } 100% { opacity: 1; } }
+  @keyframes hudBlink { 0% { opacity: 0.25; } 100% { opacity: 1; } }
 
   .hud-action-btn {
     cursor: pointer;
-    background: rgba(224, 17, 95, 0.2);
-    border: 1px solid var(--accent);
-    color: #fff;
-    padding: 6px 14px;
-    border-radius: 99px;
-    font-size: 10.5px;
+    background: rgba(14, 17, 26, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--text-secondary);
+    padding: 5px 12px;
+    border-radius: 2px;
+    font-size: 10px;
     font-family: 'JetBrains Mono', monospace;
-    letter-spacing: 1.5px;
-    transition: all 0.25s ease;
-    box-shadow: 0 0 15px rgba(224, 17, 95, 0.35);
+    letter-spacing: 0.12em;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
   }
   .hud-action-btn:hover {
-    background: var(--accent);
-    box-shadow: 0 0 25px var(--accent-glow);
-    transform: translateY(-1px);
+    background: rgba(255, 0, 85, 0.15);
+    color: #fff;
+    border-color: var(--carmine);
+    box-shadow: 0 0 15px var(--carmine-glow);
   }
   .hud-action-btn.active {
-    background: #00f2fe;
-    color: #030307;
-    border-color: #00f2fe;
-    font-weight: 800;
-    box-shadow: 0 0 25px rgba(0, 242, 254, 0.8);
+    background: var(--carmine);
+    color: #fff;
+    border-color: var(--carmine);
+    font-weight: 700;
+    box-shadow: 0 0 20px var(--carmine-glow);
   }
 
   /* Audio Equalizer Widget */
   .audio-eq {
     display: flex;
     align-items: flex-end;
-    gap: 3px;
-    height: 14px;
+    gap: 2px;
+    height: 12px;
   }
   .eq-bar {
-    width: 3px;
-    background: #00f2fe;
+    width: 2.5px;
+    background: var(--cyan);
     border-radius: 1px;
-    height: 4px;
-    box-shadow: 0 0 6px #00f2fe;
-    transition: height 0.1s ease;
+    height: 3px;
+    box-shadow: 0 0 6px var(--cyan);
+    transition: height 0.08s ease;
   }
 
   /* Cyber Radar Widget (Bottom Left) */
@@ -234,21 +254,21 @@ const ticketStyles = `
     position: fixed;
     bottom: 24px;
     left: 24px;
-    width: 90px;
-    height: 90px;
+    width: 84px;
+    height: 84px;
     border-radius: 50%;
-    border: 1px solid rgba(0, 242, 254, 0.35);
-    background: rgba(8, 9, 18, 0.7);
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    background: rgba(9, 10, 15, 0.85);
     backdrop-filter: blur(8px);
     z-index: 50;
     pointer-events: none;
-    box-shadow: 0 0 25px rgba(0, 242, 254, 0.2);
+    box-shadow: 0 0 25px rgba(0, 240, 255, 0.15);
     overflow: hidden;
   }
   .radar-sweep {
     position: absolute;
     inset: 0;
-    background: conic-gradient(from 0deg, rgba(0, 242, 254, 0.35) 0deg, transparent 90deg, transparent 360deg);
+    background: conic-gradient(from 0deg, rgba(0, 240, 255, 0.3) 0deg, transparent 90deg, transparent 360deg);
     border-radius: 50%;
     animation: radarSpin 4s linear infinite;
   }
@@ -259,17 +279,17 @@ const ticketStyles = `
     left: 50%;
     transform: translate(-50%, -50%);
     border-radius: 50%;
-    border: 1px dashed rgba(224, 17, 95, 0.35);
+    border: 1px dashed rgba(255, 0, 85, 0.3);
   }
   .radar-blip {
     position: absolute;
-    width: 5px;
-    height: 5px;
-    background: #ff2a7a;
+    width: 4px;
+    height: 4px;
+    background: var(--carmine-bright);
     border-radius: 50%;
-    box-shadow: 0 0 8px #ff2a7a;
-    top: 32px;
-    left: 54px;
+    box-shadow: 0 0 8px var(--carmine-bright);
+    top: 28px;
+    left: 50px;
     animation: blipPulse 2s infinite alternate;
   }
   @keyframes blipPulse { 0% { opacity: 0.2; transform: scale(0.8); } 100% { opacity: 1; transform: scale(1.3); } }
@@ -279,9 +299,9 @@ const ticketStyles = `
     position: relative;
     z-index: 10;
     display: flex;
-    align-items: center;
+    align-items: stretch;
     justify-content: center;
-    gap: 32px;
+    gap: 28px;
     transform-style: preserve-3d;
     transition: transform 0.12s ease-out;
     max-width: 1140px;
@@ -289,50 +309,73 @@ const ticketStyles = `
   }
 
   /* =========================================================
-     THE FUTURISTIC VIP TICKET PASS
+     THE ARCHITECTURAL VIP ACCESS TICKET (Precision Silhouette)
      ========================================================= */
   .ticket-container {
     position: relative;
-    background: var(--ticket-bg);
-    backdrop-filter: blur(32px);
-    -webkit-backdrop-filter: blur(32px);
-    border-radius: 26px;
+    background: var(--chassis);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    border: 1px solid var(--plate-border);
     display: flex;
-    width: 100%;
+    flex: 1;
     max-width: 820px;
-    border: 1px solid rgba(224, 17, 95, 0.55);
     box-shadow: 
-      0 30px 80px rgba(0, 0, 0, 0.95),
-      0 0 60px rgba(224, 17, 95, 0.4),
-      inset 0 0 40px rgba(224, 17, 95, 0.12);
+      0 35px 80px rgba(0, 0, 0, 0.95),
+      0 0 60px rgba(255, 0, 85, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
     transform-style: preserve-3d;
+    border-radius: 4px;
+  }
+
+  /* Precision Industrial Corner Reticles */
+  .ticket-container::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    width: 12px;
+    height: 12px;
+    border-top: 2px solid var(--carmine);
+    border-left: 2px solid var(--carmine);
+    z-index: 8;
+    pointer-events: none;
+  }
+  .ticket-container::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: -1px;
+    width: 12px;
+    height: 12px;
+    border-bottom: 2px solid var(--carmine);
+    border-left: 2px solid var(--carmine);
+    z-index: 8;
+    pointer-events: none;
   }
 
   .guilloche-bg {
     position: absolute;
     inset: 0;
-    opacity: 0.08;
+    opacity: 0.06;
     pointer-events: none;
     z-index: 1;
     background-image: 
-      radial-gradient(circle at 50% 50%, rgba(255, 42, 122, 0.5) 1px, transparent 1px),
-      radial-gradient(circle at 20% 30%, rgba(0, 242, 254, 0.5) 1px, transparent 1px);
+      radial-gradient(circle at 50% 50%, rgba(255, 0, 85, 0.6) 1px, transparent 1px),
+      radial-gradient(circle at 20% 30%, rgba(0, 240, 255, 0.6) 1px, transparent 1px);
     background-size: 24px 24px, 18px 18px;
-    border-radius: 26px;
   }
 
-  /* Interactive Holographic Foil Sheen */
+  /* Holographic Foil Overlay */
   .holo-foil-overlay {
     position: absolute;
     inset: 0;
-    border-radius: 26px;
     background: linear-gradient(
       var(--holo-angle),
       transparent 0%,
-      rgba(255, 42, 122, 0.08) 25%,
-      rgba(0, 242, 254, 0.12) 50%,
-      rgba(157, 78, 221, 0.09) 75%,
-      rgba(255, 215, 0, 0.08) 90%,
+      rgba(255, 0, 85, 0.06) 25%,
+      rgba(0, 240, 255, 0.09) 50%,
+      rgba(255, 170, 0, 0.06) 75%,
       transparent 100%
     );
     pointer-events: none;
@@ -351,9 +394,9 @@ const ticketStyles = `
     position: absolute;
     left: 0;
     right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, transparent, #00f2fe, #ff2a7a, #00f2fe, transparent);
-    box-shadow: 0 0 18px #00f2fe, 0 0 35px #ff2a7a;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--cyan), var(--carmine-bright), var(--cyan), transparent);
+    box-shadow: 0 0 15px var(--cyan), 0 0 30px var(--carmine);
     z-index: 6;
     pointer-events: none;
     animation: laserSweep 4s ease-in-out infinite alternate;
@@ -364,105 +407,147 @@ const ticketStyles = `
     100% { top: 100%; opacity: 0.15; }
   }
 
-  /* Notches for VIP ticket aesthetic */
+  /* Physical Ticket Cutout Notches */
   .notch-top {
     position: absolute;
-    top: -20px;
-    right: 220px;
-    width: 40px;
-    height: 40px;
-    background: var(--bg);
+    top: -16px;
+    right: 232px;
+    width: 32px;
+    height: 32px;
+    background: var(--void);
     border-radius: 50%;
-    border-bottom: 1.5px solid rgba(224, 17, 95, 0.6);
+    border-bottom: 1px solid var(--plate-border);
     z-index: 10;
-    box-shadow: inset 0 -8px 14px rgba(0, 0, 0, 0.85);
+    box-shadow: inset 0 -6px 12px rgba(0, 0, 0, 0.9);
   }
   .notch-bottom {
     position: absolute;
-    bottom: -20px;
-    right: 220px;
-    width: 40px;
-    height: 40px;
-    background: var(--bg);
+    bottom: -16px;
+    right: 232px;
+    width: 32px;
+    height: 32px;
+    background: var(--void);
     border-radius: 50%;
-    border-top: 1.5px solid rgba(224, 17, 95, 0.6);
+    border-top: 1px solid var(--plate-border);
     z-index: 10;
-    box-shadow: inset 0 8px 14px rgba(0, 0, 0, 0.85);
+    box-shadow: inset 0 6px 12px rgba(0, 0, 0, 0.9);
   }
 
   .perforation-divider {
     position: absolute;
     top: 0;
     bottom: 0;
-    right: 239px;
+    right: 247px;
     width: 2px;
-    border-right: 2px dashed rgba(224, 17, 95, 0.55);
+    border-right: 2px dashed rgba(255, 0, 85, 0.4);
     z-index: 9;
     pointer-events: none;
   }
 
-  /* MAIN TICKET SECTION */
+  /* =========================================================
+     MAIN TICKET BODY (Deliberate Editorial Typography & Spacing)
+     ========================================================= */
   .ticket-main {
     flex: 1;
-    padding: 40px 44px;
+    padding: 36px 40px;
     position: relative;
     z-index: 5;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
   }
 
+  /* Top Technical Deck */
+  .ticket-top-deck {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    margin-bottom: 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.2em;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+  }
+  .deck-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .deck-val {
+    color: var(--text-primary);
+    font-weight: 700;
+  }
+
+  /* Main Masthead */
   .ticket-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: flex-end;
     margin-bottom: 24px;
   }
-
   .brand-title {
-    font-family: 'Orbitron', 'Space Grotesk', sans-serif;
-    font-size: 26px;
-    font-weight: 900;
-    letter-spacing: 3px;
-    background: linear-gradient(135deg, #ffffff 20%, #ff70a0 60%, #00f2fe 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    text-shadow: 0 0 30px rgba(224, 17, 95, 0.7);
+    font-family: 'Syne', 'Space Grotesk', sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    color: #ffffff;
+    text-transform: uppercase;
+    text-shadow: 0 0 25px rgba(255, 0, 85, 0.4);
   }
   .brand-sub {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    letter-spacing: 3px;
-    color: #94a3b8;
+    font-size: 9.5px;
+    letter-spacing: 0.22em;
+    color: var(--carmine);
     text-transform: uppercase;
+    margin-top: 6px;
+    font-weight: 600;
   }
 
+  /* Badges */
+  .badge-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+  }
   .vip-badge {
-    background: linear-gradient(135deg, rgba(224, 17, 95, 0.3), rgba(0, 242, 254, 0.15));
-    border: 1px solid rgba(255, 42, 122, 0.7);
-    padding: 7px 18px;
-    border-radius: 99px;
-    font-family: 'Orbitron', monospace;
-    font-size: 11px;
+    background: rgba(255, 0, 85, 0.12);
+    border: 1px solid var(--carmine);
+    padding: 5px 14px;
+    border-radius: 2px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
     font-weight: 800;
-    letter-spacing: 2.5px;
-    color: #ff2a7a;
-    box-shadow: 0 0 25px rgba(224, 17, 95, 0.5);
-    animation: badgePulse 2.5s ease-in-out infinite alternate;
+    letter-spacing: 0.2em;
+    color: var(--carmine-bright);
+    box-shadow: 0 0 15px rgba(255, 0, 85, 0.35);
   }
-  @keyframes badgePulse {
-    0% { box-shadow: 0 0 20px rgba(224, 17, 95, 0.4); border-color: rgba(255, 42, 122, 0.7); }
-    100% { box-shadow: 0 0 35px rgba(0, 242, 254, 0.7); border-color: #00f2fe; color: #00f2fe; }
+  .pass-type-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8.5px;
+    letter-spacing: 0.2em;
+    color: var(--text-tertiary);
   }
 
-  /* 3D Key Container with animated sweep */
+  /* =========================================================
+     THE KEY VAULT (Recessed Architectural Chamber)
+     ========================================================= */
   .key-box-3d {
-    background: rgba(5, 6, 12, 0.96);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 18px;
-    padding: 24px 28px;
+    background: #07080d;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-left: 3px solid var(--carmine);
+    border-radius: 2px;
+    padding: 22px 24px;
     position: relative;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     box-shadow: 
-      0 15px 40px rgba(0, 0, 0, 0.8),
-      inset 0 0 25px rgba(224, 17, 95, 0.22);
+      inset 0 0 30px rgba(0, 0, 0, 0.95),
+      0 10px 30px rgba(0, 0, 0, 0.6);
     overflow: hidden;
   }
   .key-box-3d::after {
@@ -470,9 +555,9 @@ const ticketStyles = `
     position: absolute;
     top: 0;
     left: -100%;
-    width: 50%;
+    width: 40%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(0, 242, 254, 0.3), transparent);
+    background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.18), transparent);
     transform: skewX(-25deg);
     animation: keyShineSweep 5s infinite;
   }
@@ -485,261 +570,304 @@ const ticketStyles = `
     display: flex;
     justify-content: space-between;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10.5px;
-    letter-spacing: 2px;
-    color: #94a3b8;
-    margin-bottom: 12px;
+    font-size: 9.5px;
+    letter-spacing: 0.2em;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+    text-transform: uppercase;
   }
   .key-value {
-    font-family: 'Orbitron', 'JetBrains Mono', monospace;
-    font-size: 27px;
-    font-weight: 900;
-    color: #fff;
-    letter-spacing: 3.5px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 26px;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: 0.18em;
     text-shadow: 
-      0 0 14px var(--accent-bright),
-      0 0 35px var(--accent-glow),
-      0 0 65px var(--accent);
+      0 0 15px var(--carmine-glow),
+      0 0 35px rgba(255, 0, 85, 0.4);
     user-select: all;
+    font-variant-numeric: tabular-nums;
   }
 
   /* Command box */
   .cmd-box {
-    background: rgba(8, 9, 16, 0.94);
-    border: 1px dashed rgba(224, 17, 95, 0.45);
-    border-radius: 14px;
-    padding: 15px 22px;
+    background: rgba(14, 17, 26, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 2px;
+    padding: 12px 18px;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 13.5px;
-    color: #00f2fe;
-    margin-bottom: 24px;
+    font-size: 12px;
+    color: var(--cyan);
+    margin-bottom: 20px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     user-select: all;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.55);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
     transition: border-color 0.2s ease;
   }
-  .cmd-box:hover { border-color: #00f2fe; }
-  .cmd-prefix { color: #64748b; font-size: 10.5px; letter-spacing: 1.5px; }
+  .cmd-box:hover { border-color: var(--cyan); }
+  .cmd-prefix { color: var(--text-tertiary); font-size: 9.5px; letter-spacing: 0.15em; font-weight: 600; }
 
-  /* Cyber button */
+  /* Industrial Trigger Button */
   .btn-redeem {
     width: 100%;
-    background: linear-gradient(135deg, #e0115f 0%, #ff2a7a 50%, #7928ca 100%);
-    background-size: 200% 200%;
-    color: #fff;
-    border: none;
-    border-radius: 16px;
-    padding: 18px 30px;
-    font-family: 'Orbitron', 'Space Grotesk', sans-serif;
-    font-size: 14px;
-    font-weight: 900;
-    letter-spacing: 3px;
+    background: linear-gradient(135deg, #ff0055 0%, #d60047 100%);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    padding: 16px 28px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.22em;
     text-transform: uppercase;
     cursor: pointer;
     position: relative;
     overflow: hidden;
-    box-shadow: 0 0 40px rgba(224, 17, 95, 0.7), 0 12px 30px rgba(0, 0, 0, 0.7);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    animation: btnGradient 6s ease infinite;
-  }
-  @keyframes btnGradient {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+    box-shadow: 
+      0 0 30px rgba(255, 0, 85, 0.5),
+      0 10px 25px rgba(0, 0, 0, 0.7);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .btn-redeem:hover {
-    transform: translateY(-2px) scale(1.02);
-    box-shadow: 0 0 60px rgba(255, 42, 122, 0.95), 0 18px 40px rgba(0, 0, 0, 0.8);
+    transform: translateY(-1px);
+    background: linear-gradient(135deg, #ff1a66 0%, #ff0055 100%);
+    box-shadow: 0 0 45px rgba(255, 0, 85, 0.8), 0 15px 35px rgba(0, 0, 0, 0.8);
+  }
+  .btn-redeem:active {
+    transform: translateY(1px);
   }
   .ripple {
     position: absolute;
     border-radius: 50%;
     transform: scale(0);
     animation: rippleAnim 0.6s linear;
-    background: rgba(255, 255, 255, 0.65);
+    background: rgba(255, 255, 255, 0.7);
     pointer-events: none;
   }
   @keyframes rippleAnim { to { transform: scale(4); opacity: 0; } }
 
-  .micro-security {
+  /* Structured Technical Metadata Grid */
+  .tech-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
     margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 9.5px;
-    letter-spacing: 1.5px;
-    color: rgba(148, 163, 184, 0.65);
+  }
+  .meta-col {
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .meta-label {
+    font-size: 8px;
+    color: var(--text-tertiary);
+    letter-spacing: 0.2em;
     text-transform: uppercase;
+  }
+  .meta-value {
+    font-size: 10px;
+    color: var(--text-secondary);
+    font-weight: 700;
+    letter-spacing: 0.1em;
   }
 
   /* =========================================================
-     INTERACTIVE TEAR-OFF VIP STUB WITH PHYSICS
+     PERFORATED TEAR-OFF STUB (Mechanical Precision)
      ========================================================= */
   .ticket-stub {
-    width: 240px;
-    padding: 38px 24px;
+    width: 248px;
+    padding: 36px 24px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: space-between;
     position: relative;
-    background: rgba(8, 9, 16, 0.75);
+    background: #07080c;
     z-index: 5;
-    border-radius: 0 26px 26px 0;
+    border-left: 1px solid rgba(255, 255, 255, 0.06);
     transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s ease;
     cursor: pointer;
   }
 
   /* When torn off! */
   .ticket-stub.torn {
-    transform: translateX(45px) rotate(8deg) translateY(15px);
-    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.9), 0 0 35px rgba(255, 42, 122, 0.6);
-    border: 1px dashed #ff2a7a;
-    border-radius: 20px;
+    transform: translateX(45px) rotate(7deg) translateY(12px);
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.95), 0 0 35px rgba(255, 0, 85, 0.6);
+    border: 1px dashed var(--carmine);
+    border-radius: 4px;
   }
   .ticket-stub.torn::before {
-    content: 'TORN // VIP DETACHED';
+    content: 'TORN // DETACHED';
     position: absolute;
-    top: -24px;
+    top: -20px;
     left: 50%;
     transform: translateX(-50%);
-    background: #ff2a7a;
+    background: var(--carmine);
     color: #fff;
-    font-family: 'Orbitron', monospace;
-    font-size: 9px;
-    font-weight: 900;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8.5px;
+    font-weight: 800;
     padding: 3px 10px;
-    border-radius: 99px;
-    letter-spacing: 1px;
+    letter-spacing: 0.15em;
     white-space: nowrap;
+    border-radius: 2px;
   }
 
   .stub-tag {
-    font-family: 'Orbitron', monospace;
-    font-size: 11.5px;
-    letter-spacing: 2px;
-    color: #ff2a7a;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    color: var(--carmine);
     text-transform: uppercase;
     text-align: center;
     font-weight: 800;
   }
 
+  /* Holographic VIP Seal */
   .holo-seal {
-    width: 70px;
-    height: 70px;
+    width: 64px;
+    height: 64px;
     border-radius: 50%;
-    border: 2px dashed #ffd700;
+    border: 1px dashed var(--amber);
     display: flex;
     align-items: center;
     justify-content: center;
-    background: radial-gradient(circle, rgba(255, 215, 0, 0.22), transparent 70%);
-    box-shadow: 0 0 25px rgba(255, 215, 0, 0.45);
+    background: radial-gradient(circle, rgba(255, 170, 0, 0.15), transparent 70%);
+    box-shadow: 0 0 25px rgba(255, 170, 0, 0.3);
     position: relative;
     animation: sealSpin 20s linear infinite;
   }
   @keyframes sealSpin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   .seal-inner {
-    font-family: 'Orbitron', monospace;
-    font-size: 8px;
-    font-weight: 900;
-    color: #ffd700;
-    letter-spacing: 1.5px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7.5px;
+    font-weight: 800;
+    color: var(--amber);
+    letter-spacing: 0.15em;
     text-align: center;
-    text-shadow: 0 0 10px #ffd700;
+    text-shadow: 0 0 10px var(--amber);
+    line-height: 1.3;
   }
 
+  /* Precision Barcode */
+  .barcode-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+  }
   .cyber-barcode {
     width: 100%;
-    height: 55px;
+    height: 50px;
     background-image: repeating-linear-gradient(
       90deg,
-      #fff 0px, #fff 2px,
-      transparent 2px, transparent 4px,
-      #00f2fe 4px, #00f2fe 7px,
-      transparent 7px, transparent 10px,
-      #ff2a7a 10px, #ff2a7a 12px,
-      transparent 12px, transparent 16px,
-      #fff 16px, #fff 19px,
-      transparent 19px, transparent 22px
+      #fff 0px, #fff 1.5px,
+      transparent 1.5px, transparent 3.5px,
+      var(--cyan) 3.5px, var(--cyan) 6px,
+      transparent 6px, transparent 9px,
+      var(--carmine) 9px, var(--carmine) 11px,
+      transparent 11px, transparent 15px,
+      #fff 15px, #fff 18px,
+      transparent 18px, transparent 21px
     );
-    box-shadow: 0 0 15px rgba(0, 242, 254, 0.45);
-    border-radius: 4px;
+    box-shadow: 0 0 15px rgba(0, 240, 255, 0.35);
+    border-radius: 1px;
   }
   .barcode-serial {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 9.5px;
-    letter-spacing: 3px;
-    color: #64748b;
+    font-size: 9px;
+    letter-spacing: 0.25em;
+    color: var(--text-tertiary);
   }
 
   .stub-meta {
     width: 100%;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    color: #94a3b8;
+    font-size: 9px;
+    color: var(--text-secondary);
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 4px;
     text-align: center;
+    letter-spacing: 0.1em;
   }
   .stub-tear-hint {
-    font-size: 8.5px;
-    color: #ff2a7a;
-    letter-spacing: 1px;
+    font-size: 8px;
+    color: var(--carmine);
+    letter-spacing: 0.15em;
     text-transform: uppercase;
     font-family: 'JetBrains Mono', monospace;
-    margin-top: 4px;
+    margin-top: 6px;
     animation: blinkHint 1.5s infinite;
+    font-weight: 700;
   }
   @keyframes blinkHint { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
 
   /* =========================================================
-     FLOATING HOLOGRAPHIC COMPANION POD (GIF INTEGRATION)
+     HOLOGRAPHIC COMPANION CONSOLE (Tactical Cyberpod)
      ========================================================= */
   .holo-companion-card {
-    width: 260px;
-    background: rgba(12, 13, 24, 0.88);
+    width: 270px;
+    background: var(--chassis);
     backdrop-filter: blur(28px);
-    border: 1px solid rgba(0, 242, 254, 0.45);
-    border-radius: 22px;
-    padding: 18px;
+    border: 1px solid var(--plate-border);
+    border-radius: 4px;
+    padding: 20px;
     display: flex;
     flex-direction: column;
     align-items: center;
     box-shadow: 
-      0 25px 60px rgba(0, 0, 0, 0.85),
-      0 0 45px rgba(0, 242, 254, 0.35);
+      0 35px 80px rgba(0, 0, 0, 0.95),
+      0 0 40px rgba(0, 240, 255, 0.2);
     transform-style: preserve-3d;
     transition: all 0.3s ease;
     cursor: pointer;
     position: relative;
   }
-  .holo-companion-card:hover {
-    transform: translateY(-8px) scale(1.04);
-    border-color: #ff2a7a;
-    box-shadow: 0 0 55px rgba(255, 42, 122, 0.65);
+  .holo-companion-card::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    right: -1px;
+    width: 10px;
+    height: 10px;
+    border-top: 2px solid var(--cyan);
+    border-right: 2px solid var(--cyan);
+    z-index: 8;
   }
+  .holo-companion-card:hover {
+    transform: translateY(-6px);
+    border-color: rgba(255, 0, 85, 0.45);
+    box-shadow: 0 0 50px rgba(255, 0, 85, 0.45);
+  }
+
   .companion-hud-header {
     width: 100%;
     display: flex;
     justify-content: space-between;
     align-items: center;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    letter-spacing: 1.5px;
-    color: #00f2fe;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    color: var(--cyan);
     margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
   }
   .companion-img-frame {
     width: 100%;
-    height: 280px;
-    border-radius: 16px;
+    height: 290px;
+    border-radius: 2px;
     overflow: hidden;
     position: relative;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    box-shadow: inset 0 0 25px rgba(0, 0, 0, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 0 25px rgba(0, 0, 0, 0.9);
   }
   .companion-img-frame img {
     width: 100%;
@@ -749,84 +877,84 @@ const ticketStyles = `
     filter: contrast(1.1) saturate(1.15);
     transition: transform 0.4s ease;
   }
-  .holo-companion-card:hover .companion-img-frame img { transform: scale(1.06); }
+  .holo-companion-card:hover .companion-img-frame img { transform: scale(1.05); }
   .companion-img-frame::after {
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(rgba(0, 242, 254, 0.08) 50%, rgba(224, 17, 95, 0.08) 50%);
+    background: linear-gradient(rgba(0, 240, 255, 0.06) 50%, rgba(255, 0, 85, 0.06) 50%);
     background-size: 100% 4px;
     pointer-events: none;
   }
 
   .companion-dialogue {
     position: absolute;
-    top: -46px;
+    top: -42px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(14, 15, 28, 0.95);
-    border: 1px solid #ff2a7a;
-    border-radius: 12px;
+    background: #090a0f;
+    border: 1px solid var(--carmine);
+    border-radius: 2px;
     padding: 6px 14px;
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
     font-weight: 700;
-    color: #fff;
+    color: #ffffff;
     white-space: nowrap;
-    box-shadow: 0 0 20px rgba(224, 17, 95, 0.6);
+    box-shadow: 0 0 20px rgba(255, 0, 85, 0.5);
     pointer-events: none;
-    transition: opacity 0.2s, transform 0.2s;
+    letter-spacing: 0.05em;
   }
   .companion-dialogue::after {
     content: '';
     position: absolute;
-    bottom: -6px;
+    bottom: -5px;
     left: 50%;
     transform: translateX(-50%);
-    border-left: 6px solid transparent;
-    border-right: 6px solid transparent;
-    border-top: 6px solid #ff2a7a;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid var(--carmine);
   }
 
   .companion-caption {
     margin-top: 14px;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    color: #f1f5f9;
+    font-size: 10px;
+    color: var(--text-primary);
     text-align: center;
-    letter-spacing: 1.5px;
+    letter-spacing: 0.18em;
   }
-  .companion-caption span { color: #ff2a7a; font-weight: 800; }
+  .companion-caption span { color: var(--carmine); font-weight: 800; }
 
   /* Custom Cursor */
   .custom-cursor {
     position: fixed;
-    width: 32px;
-    height: 32px;
-    border: 1.5px solid #ff2a7a;
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--carmine);
     border-radius: 50%;
     pointer-events: none;
     transform: translate(-50%, -50%);
     transition: width 0.2s, height 0.2s, border-color 0.2s;
     z-index: 9999;
-    box-shadow: 0 0 20px rgba(224, 17, 95, 0.8);
+    box-shadow: 0 0 15px rgba(255, 0, 85, 0.6);
   }
   .custom-cursor-dot {
     position: fixed;
-    width: 6px;
-    height: 6px;
-    background: #00f2fe;
+    width: 4px;
+    height: 4px;
+    background: var(--cyan);
     border-radius: 50%;
     pointer-events: none;
     transform: translate(-50%, -50%);
     z-index: 10000;
-    box-shadow: 0 0 10px #00f2fe;
+    box-shadow: 0 0 8px var(--cyan);
   }
 
   @media (max-width: 990px) {
-    .scene-wrapper { flex-direction: column; }
-    .ticket-container { flex-direction: column; }
-    .ticket-stub { width: 100%; border-radius: 0 0 26px 26px; border-top: 2px dashed rgba(224, 17, 95, 0.45); }
+    .scene-wrapper { flex-direction: column; align-items: center; }
+    .ticket-container { flex-direction: column; width: 100%; }
+    .ticket-stub { width: 100%; border-left: none; border-top: 1px dashed rgba(255, 0, 85, 0.4); }
     .perforation-divider, .notch-top, .notch-bottom { display: none; }
     .holo-companion-card { width: 100%; max-width: 420px; }
   }

@@ -488,14 +488,14 @@ function getTicketScripts(key, redeemCommand) {
       navigator.clipboard.writeText(text).then(() => {
         playVictoryChirp();
         const label = document.getElementById('btnLabel');
-        label.innerText = 'COPIED TO CLIPBOARD!';
+        label.innerText = 'REDEEM COMMAND COPIED // READY';
         explodeSparks(window.innerWidth / 2, window.innerHeight / 2);
 
         document.body.style.filter = 'brightness(1.4)';
         setTimeout(() => { document.body.style.filter = ''; }, 160);
 
         setTimeout(() => {
-          label.innerText = 'Copy Redeem Command';
+          label.innerText = 'EXECUTE REDEEM SYNC';
         }, 3000);
       }).catch(() => {
         prompt('Copy command manually:', text);
