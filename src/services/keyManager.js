@@ -81,7 +81,7 @@ class KeyManager {
     // Check if this hash was already assigned a key
     for (const [k, data] of Object.entries(this.generatedKeys)) {
       if (data.hash === cleanHash) {
-        return { key: k, used: data.used };
+        return { key: k, used: data.used, alreadyExisted: true };
       }
     }
 
@@ -98,7 +98,7 @@ class KeyManager {
       note: 'hash_claim'
     };
     this.saveKeys();
-    return { key, used: false };
+    return { key, used: false, alreadyExisted: false };
   }
 
   getKeyUrl(userId) {
