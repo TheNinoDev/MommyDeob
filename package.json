@@ -15,5 +15,8 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "devDependencies": {
+    "ssh2-sftp-client": "^12.1.1"
   }
 }
