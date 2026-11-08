@@ -78,7 +78,7 @@ function renderCrazyKeyPage(key) {
         <button class="music-ctrl-btn" id="musicPlayBtn" title="Play / Pause song.mp3">▶ PLAY</button>
         <button class="music-ctrl-btn" id="musicStopBtn" title="Stop song.mp3">⏹</button>
         <div class="music-track-info">
-          <span class="music-track-name">song.mp3</span>
+          <span class="music-track-name" title="Vamos A La Playa (Nightcore Mix) - Marc Korn">Vamos A La Playa (Nightcore)</span>
           <div class="audio-eq" id="musicEq">
             <div class="eq-bar"></div>
             <div class="eq-bar"></div>
