@@ -171,18 +171,8 @@ class KeyManager {
     if (this.generatedKeys[upperKey]) {
       const keyData = this.generatedKeys[upperKey];
       if (keyData.used) {
-        if (keyData.usedBy && String(keyData.usedBy) === String(userId) && this.users[String(userId)] && this.users[String(userId)].expiresAt > now) {
-          const userRec = this.users[String(userId)];
-          const daysRemaining = Math.ceil((userRec.expiresAt - now) / (1000 * 60 * 60 * 24));
-          return {
-            success: true,
-            method: 'Mommy One-Time Key (Active)',
-            message: 'License is already activated on your account.',
-            daysRemaining,
-            expiresAt: new Date(userRec.expiresAt).toUTCString()
-          };
-        }
-        throw new Error('This key has already been redeemed! Stop trying to reuse old garbage.');
+        // A used one-time key is DEAD. No exceptions, no re-display, no "already activated" success response.
+        throw new Error('This key has already been redeemed and is permanently burned. If your license is active, check `.status` — do not re-redeem old garbage.');
       }
 
       keyData.used = true;
@@ -212,6 +202,15 @@ class KeyManager {
     // 2. Try Linkvertise Anti-Bypass verification
     const linkvertiseResult = await verifyLinkvertiseHash(clean);
     if (linkvertiseResult.valid) {
+      // Enforce strict single-use: a hash already bound to any account can never be redeemed again,
+      // even if the Linkvertise API would technically accept the same hash a second time.
+      const alreadyBound = Object.values(this.users).find(
+        (u) => u && u.key === clean && (u.type === 'linkvertise_hash' || u.type === 'linkvertise_checkpoint')
+      );
+      if (alreadyBound) {
+        throw new Error('This Linkvertise completion hash was already bound to an account. Checkpoints are single-use, skim through it again properly, baka.');
+      }
+
       const expiresAt = now + SEVEN_DAYS_MS;
       this.users[String(userId)] = {
         key: clean,
