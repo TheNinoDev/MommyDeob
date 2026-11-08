@@ -129,11 +129,12 @@ function renderCrazyKeyPage(key) {
   <style>
     :root {
       --accent: #e0115f;
-      --accent-glow: rgba(224, 17, 95, 0.65);
+      --accent-glow: rgba(224, 17, 95, 0.7);
       --accent-bright: #ff2a7a;
       --accent-cyan: #00f2fe;
-      --bg: #040407;
-      --card-bg: rgba(10, 11, 20, 0.7);
+      --accent-purple: #9d4edd;
+      --bg: #030306;
+      --card-bg: rgba(10, 11, 20, 0.65);
     }
 
     * {
@@ -158,7 +159,7 @@ function renderCrazyKeyPage(key) {
     }
 
     /* Fullscreen canvas layers */
-    #matrix-canvas, #particles-canvas, #confetti-canvas {
+    #matrix-canvas, #particles-canvas, #warp-canvas, #cursor-trail-canvas, #confetti-canvas {
       position: fixed;
       top: 0;
       left: 0;
@@ -166,26 +167,28 @@ function renderCrazyKeyPage(key) {
       height: 100vh;
       pointer-events: none;
     }
-    #matrix-canvas { z-index: 0; opacity: 0.18; }
-    #particles-canvas { z-index: 1; }
-    #confetti-canvas { z-index: 100; }
+    #warp-canvas { z-index: 0; opacity: 0.6; }
+    #matrix-canvas { z-index: 1; opacity: 0.22; }
+    #particles-canvas { z-index: 2; }
+    #cursor-trail-canvas { z-index: 998; }
+    #confetti-canvas { z-index: 1000; }
 
-    /* 3D Infinity Cyber Grids - Floor and Ceiling */
+    /* 3D Infinity Cyber Grids - Floor and Ceiling with speed boost */
     .cyber-grid-floor {
       position: fixed;
       inset: -50%;
       background-size: 60px 60px;
       background-image: 
-        linear-gradient(to right, rgba(224, 17, 95, 0.1) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(224, 17, 95, 0.1) 1px, transparent 1px);
-      transform: perspective(600px) rotateX(70deg) translateZ(-80px);
+        linear-gradient(to right, rgba(224, 17, 95, 0.15) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(224, 17, 95, 0.15) 1px, transparent 1px);
+      transform: perspective(500px) rotateX(75deg) translateZ(-60px);
       pointer-events: none;
-      z-index: 0;
-      animation: gridFloorScroll 12s linear infinite;
+      z-index: 1;
+      animation: gridFloorScroll 8s linear infinite;
     }
     @keyframes gridFloorScroll {
-      0% { transform: perspective(600px) rotateX(70deg) translateY(0); }
-      100% { transform: perspective(600px) rotateX(70deg) translateY(60px); }
+      0% { transform: perspective(500px) rotateX(75deg) translateY(0); }
+      100% { transform: perspective(500px) rotateX(75deg) translateY(60px); }
     }
 
     .cyber-grid-ceiling {
@@ -193,33 +196,59 @@ function renderCrazyKeyPage(key) {
       inset: -50%;
       background-size: 60px 60px;
       background-image: 
-        linear-gradient(to right, rgba(0, 242, 254, 0.05) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(0, 242, 254, 0.05) 1px, transparent 1px);
-      transform: perspective(600px) rotateX(-70deg) translateZ(-80px);
+        linear-gradient(to right, rgba(0, 242, 254, 0.08) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0, 242, 254, 0.08) 1px, transparent 1px);
+      transform: perspective(500px) rotateX(-75deg) translateZ(-60px);
       pointer-events: none;
-      z-index: 0;
-      animation: gridCeilScroll 12s linear infinite;
+      z-index: 1;
+      animation: gridCeilScroll 8s linear infinite;
     }
     @keyframes gridCeilScroll {
-      0% { transform: perspective(600px) rotateX(-70deg) translateY(0); }
-      100% { transform: perspective(600px) rotateX(-70deg) translateY(60px); }
+      0% { transform: perspective(500px) rotateX(-75deg) translateY(0); }
+      100% { transform: perspective(500px) rotateX(-75deg) translateY(60px); }
     }
 
-    /* CRT scanline and vignette overlay */
+    /* Giant 3D Holographic Gyro Rings Behind Card */
+    .hologram-rings {
+      position: fixed;
+      width: 700px;
+      height: 700px;
+      pointer-events: none;
+      z-index: 3;
+      transform-style: preserve-3d;
+      animation: gyroRotate 24s linear infinite;
+    }
+    .ring {
+      position: absolute;
+      inset: 0;
+      border: 1px dashed rgba(224, 17, 95, 0.25);
+      border-radius: 50%;
+      box-shadow: 0 0 30px rgba(224, 17, 95, 0.1);
+    }
+    .ring:nth-child(1) { transform: rotateX(60deg) rotateY(20deg); border-color: rgba(224, 17, 95, 0.35); }
+    .ring:nth-child(2) { transform: rotateX(-45deg) rotateY(45deg); border-color: rgba(0, 242, 254, 0.25); }
+    .ring:nth-child(3) { transform: rotateX(80deg) rotateY(-30deg); border-color: rgba(157, 78, 221, 0.3); border-style: dotted; }
+
+    @keyframes gyroRotate {
+      0% { transform: rotateZ(0deg) rotateY(0deg); }
+      100% { transform: rotateZ(360deg) rotateY(360deg); }
+    }
+
+    /* Retro CRT scanlines and vignette */
     .scanlines {
       position: fixed;
       inset: 0;
-      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.3) 50%);
       background-size: 100% 4px;
       z-index: 90;
       pointer-events: none;
-      opacity: 0.6;
+      opacity: 0.7;
     }
 
     .vignette {
       position: fixed;
       inset: 0;
-      background: radial-gradient(circle at center, transparent 40%, #000000 100%);
+      background: radial-gradient(circle at center, transparent 35%, #000000 100%);
       pointer-events: none;
       z-index: 89;
     }
@@ -227,15 +256,15 @@ function renderCrazyKeyPage(key) {
     /* Custom Custom Neon Follower */
     .custom-cursor {
       position: fixed;
-      width: 32px;
-      height: 32px;
+      width: 34px;
+      height: 34px;
       border: 2px solid var(--accent-bright);
       border-radius: 50%;
       pointer-events: none;
       z-index: 999;
       transform: translate(-50%, -50%);
       transition: width 0.15s, height 0.15s, border-color 0.15s, transform 0.05s ease-out;
-      box-shadow: 0 0 15px var(--accent-glow);
+      box-shadow: 0 0 20px var(--accent-glow);
     }
     .custom-cursor-dot {
       position: fixed;
@@ -249,30 +278,42 @@ function renderCrazyKeyPage(key) {
       box-shadow: 0 0 10px #fff;
     }
 
-    /* Ambient Dual-Orb Cursor Lighting */
+    /* Multi-Orb Lighting with mouse tracking */
     .ambient-orb-1 {
       position: fixed;
-      width: 550px;
-      height: 550px;
+      width: 600px;
+      height: 600px;
       background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
-      filter: blur(100px);
+      filter: blur(95px);
       border-radius: 50%;
       pointer-events: none;
-      z-index: 0;
-      opacity: 0.55;
-      transition: transform 0.15s ease-out;
+      z-index: 1;
+      opacity: 0.6;
+      transition: transform 0.12s ease-out;
     }
     .ambient-orb-2 {
       position: fixed;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(0, 242, 254, 0.35) 0%, transparent 70%);
+      filter: blur(110px);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 1;
+      opacity: 0.45;
+      transition: transform 0.25s ease-out;
+    }
+    .ambient-orb-3 {
+      position: fixed;
       width: 450px;
       height: 450px;
-      background: radial-gradient(circle, rgba(0, 242, 254, 0.35) 0%, transparent 70%);
+      background: radial-gradient(circle, rgba(157, 78, 221, 0.3) 0%, transparent 70%);
       filter: blur(120px);
       border-radius: 50%;
       pointer-events: none;
-      z-index: 0;
+      z-index: 1;
       opacity: 0.35;
-      transition: transform 0.3s ease-out;
+      transition: transform 0.4s ease-out;
     }
 
     /* 3D Tilt Wrapper */
@@ -287,18 +328,18 @@ function renderCrazyKeyPage(key) {
     .card {
       position: relative;
       background: var(--card-bg);
-      backdrop-filter: blur(35px) saturate(200%);
-      -webkit-backdrop-filter: blur(35px) saturate(200%);
+      backdrop-filter: blur(40px) saturate(220%);
+      -webkit-backdrop-filter: blur(40px) saturate(220%);
       border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 28px;
-      padding: 50px 42px;
-      max-width: 540px;
+      border-radius: 32px;
+      padding: 52px 44px;
+      max-width: 560px;
       width: 100%;
       text-align: center;
       box-shadow: 
-        0 40px 100px rgba(0, 0, 0, 0.95),
-        0 0 60px rgba(224, 17, 95, 0.25),
-        inset 0 1px 2px rgba(255, 255, 255, 0.3);
+        0 45px 120px rgba(0, 0, 0, 0.95),
+        0 0 80px rgba(224, 17, 95, 0.3),
+        inset 0 1px 3px rgba(255, 255, 255, 0.4);
       transform-style: preserve-3d;
       overflow: hidden;
     }
@@ -308,20 +349,21 @@ function renderCrazyKeyPage(key) {
       content: '';
       position: absolute;
       inset: -3px;
-      border-radius: 31px;
+      border-radius: 35px;
       padding: 3px;
       background: linear-gradient(135deg, 
         #e0115f 0%, 
-        #00f2fe 30%, 
-        #ff2a7a 60%, 
-        #7928ca 100%
+        #00f2fe 25%, 
+        #ff2a7a 50%, 
+        #9d4edd 75%,
+        #e0115f 100%
       );
       mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
       -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
       -webkit-mask-composite: xor;
       mask-composite: exclude;
       pointer-events: none;
-      animation: borderRGB 8s linear infinite;
+      animation: borderRGB 6s linear infinite;
     }
     @keyframes borderRGB {
       0% { filter: hue-rotate(0deg); }
@@ -339,21 +381,21 @@ function renderCrazyKeyPage(key) {
       letter-spacing: 2.5px;
       text-transform: uppercase;
       color: #ff5e9c;
-      background: rgba(224, 17, 95, 0.15);
-      padding: 8px 22px;
+      background: rgba(224, 17, 95, 0.18);
+      padding: 9px 24px;
       border-radius: 100px;
-      border: 1px solid rgba(224, 17, 95, 0.5);
+      border: 1px solid rgba(224, 17, 95, 0.55);
       margin-bottom: 24px;
-      box-shadow: 0 0 25px rgba(224, 17, 95, 0.35);
-      transform: translateZ(45px);
+      box-shadow: 0 0 30px rgba(224, 17, 95, 0.4);
+      transform: translateZ(50px);
     }
 
     .pulse-dot {
-      width: 8px;
-      height: 8px;
+      width: 9px;
+      height: 9px;
       background: var(--accent-bright);
       border-radius: 50%;
-      box-shadow: 0 0 12px var(--accent-bright);
+      box-shadow: 0 0 14px var(--accent-bright);
       animation: pulse 1.2s infinite;
     }
     @keyframes pulse {
@@ -364,14 +406,14 @@ function renderCrazyKeyPage(key) {
 
     /* Glitch Typography */
     .glitch-title {
-      font-size: 32px;
+      font-size: 34px;
       font-weight: 800;
       letter-spacing: -0.5px;
       margin-bottom: 8px;
       color: #fff;
       position: relative;
-      text-shadow: 0 0 20px rgba(224, 17, 95, 0.6);
-      transform: translateZ(55px);
+      text-shadow: 0 0 25px rgba(224, 17, 95, 0.7);
+      transform: translateZ(60px);
     }
     .glitch-title::before, .glitch-title::after {
       content: 'LICENSE GRANTED';
@@ -405,22 +447,22 @@ function renderCrazyKeyPage(key) {
     .subtitle {
       color: #94a3b8;
       font-size: 14px;
-      margin-bottom: 28px;
-      transform: translateZ(40px);
+      margin-bottom: 30px;
+      transform: translateZ(45px);
     }
 
     /* 3D Floating Interactive Hologram Key Box */
     .key-box-3d {
       position: relative;
-      background: rgba(5, 6, 12, 0.85);
-      border: 1px solid rgba(224, 17, 95, 0.4);
-      border-radius: 16px;
-      padding: 24px 20px;
-      margin-bottom: 24px;
+      background: rgba(5, 6, 12, 0.9);
+      border: 1px solid rgba(224, 17, 95, 0.45);
+      border-radius: 18px;
+      padding: 26px 22px;
+      margin-bottom: 26px;
       box-shadow: 
-        0 15px 35px rgba(0, 0, 0, 0.7),
-        inset 0 0 30px rgba(224, 17, 95, 0.2);
-      transform: translateZ(70px);
+        0 20px 45px rgba(0, 0, 0, 0.75),
+        inset 0 0 35px rgba(224, 17, 95, 0.25);
+      transform: translateZ(75px);
       cursor: pointer;
       overflow: hidden;
       transition: all 0.25s ease;
@@ -428,9 +470,9 @@ function renderCrazyKeyPage(key) {
     .key-box-3d:hover {
       border-color: var(--accent-bright);
       box-shadow: 
-        0 20px 50px rgba(224, 17, 95, 0.45),
-        inset 0 0 40px rgba(224, 17, 95, 0.35);
-      transform: translateZ(85px) scale(1.02);
+        0 25px 60px rgba(224, 17, 95, 0.55),
+        inset 0 0 50px rgba(224, 17, 95, 0.45);
+      transform: translateZ(95px) scale(1.025);
     }
 
     /* Glowing laser line passing through key */
@@ -440,9 +482,9 @@ function renderCrazyKeyPage(key) {
       left: -100%;
       width: 50%;
       height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(255, 42, 122, 0.5), transparent);
+      background: linear-gradient(90deg, transparent, rgba(255, 42, 122, 0.6), transparent);
       transform: skewX(-25deg);
-      animation: laserSweep 3.5s infinite;
+      animation: laserSweep 3s infinite;
     }
     @keyframes laserSweep {
       0% { left: -100%; }
@@ -460,65 +502,65 @@ function renderCrazyKeyPage(key) {
 
     .key-value {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 24px;
+      font-size: 26px;
       font-weight: 800;
       color: #fff;
       letter-spacing: 3.5px;
       text-shadow: 
-        0 0 10px var(--accent-bright),
-        0 0 30px var(--accent-glow),
-        0 0 50px var(--accent);
+        0 0 12px var(--accent-bright),
+        0 0 35px var(--accent-glow),
+        0 0 60px var(--accent);
       user-select: all;
     }
 
     /* Command snippet */
     .cmd-box {
       background: rgba(8, 9, 16, 0.95);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 12px;
-      padding: 15px 18px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      padding: 16px 20px;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 13px;
+      font-size: 13.5px;
       color: #ff70a0;
-      margin-bottom: 26px;
-      transform: translateZ(50px);
+      margin-bottom: 28px;
+      transform: translateZ(55px);
       user-select: all;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55);
     }
     .cmd-prefix {
       color: #64748b;
       font-size: 11px;
-      letter-spacing: 1px;
+      letter-spacing: 1.5px;
     }
 
-    /* Ultra 3D Cyber Button */
+    /* Ultra 3D Cyber Button with animated border glow */
     .btn-redeem {
       position: relative;
       width: 100%;
-      background: linear-gradient(135deg, var(--accent) 0%, #a00b41 100%);
+      background: linear-gradient(135deg, var(--accent) 0%, #990a3e 100%);
       color: #fff;
       border: none;
-      border-radius: 14px;
-      padding: 20px 32px;
-      font-size: 16px;
+      border-radius: 16px;
+      padding: 22px 34px;
+      font-size: 17px;
       font-weight: 800;
       letter-spacing: 1px;
       cursor: pointer;
       overflow: hidden;
-      transform: translateZ(85px);
-      box-shadow: 0 12px 35px rgba(224, 17, 95, 0.5);
+      transform: translateZ(90px);
+      box-shadow: 0 15px 40px rgba(224, 17, 95, 0.55);
       transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
     .btn-redeem:hover {
       background: linear-gradient(135deg, var(--accent-bright) 0%, var(--accent) 100%);
-      transform: translateZ(105px) scale(1.03);
-      box-shadow: 0 20px 55px rgba(224, 17, 95, 0.8);
+      transform: translateZ(115px) scale(1.035);
+      box-shadow: 0 25px 65px rgba(224, 17, 95, 0.85);
     }
     .btn-redeem:active {
-      transform: translateZ(60px) scale(0.97);
+      transform: translateZ(65px) scale(0.97);
     }
     .btn-redeem::after {
       content: '';
@@ -527,7 +569,7 @@ function renderCrazyKeyPage(key) {
       left: -60%;
       width: 50%;
       height: 200%;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
       transform: rotate(30deg);
       transition: all 0.6s ease;
     }
@@ -541,7 +583,7 @@ function renderCrazyKeyPage(key) {
       border-radius: 50%;
       transform: scale(0);
       animation: rippleEffect 0.6s linear;
-      background-color: rgba(255, 255, 255, 0.4);
+      background-color: rgba(255, 255, 255, 0.5);
       pointer-events: none;
     }
     @keyframes rippleEffect {
@@ -552,26 +594,40 @@ function renderCrazyKeyPage(key) {
     }
 
     .footer-note {
-      margin-top: 26px;
+      margin-top: 28px;
       font-size: 12px;
       color: #64748b;
-      transform: translateZ(35px);
+      transform: translateZ(40px);
     }
   </style>
 </head>
 <body>
+  <!-- Warp Starfield Background -->
+  <canvas id="warp-canvas"></canvas>
+
+  <!-- 3D Grids -->
   <div class="cyber-grid-floor"></div>
   <div class="cyber-grid-ceiling"></div>
+
+  <!-- Holographic Gyro Rings -->
+  <div class="hologram-rings">
+    <div class="ring"></div>
+    <div class="ring"></div>
+    <div class="ring"></div>
+  </div>
+
   <div class="scanlines"></div>
   <div class="vignette"></div>
 
-  <!-- Dual interactive glow lights -->
+  <!-- 3 Dynamic Interactive Orb Lights -->
   <div class="ambient-orb-1" id="orb1"></div>
   <div class="ambient-orb-2" id="orb2"></div>
+  <div class="ambient-orb-3" id="orb3"></div>
 
-  <!-- Canvas layers: matrix rain, cyber particles, confetti -->
+  <!-- Canvas layers: matrix rain, cyber constellation, trail, confetti -->
   <canvas id="matrix-canvas"></canvas>
   <canvas id="particles-canvas"></canvas>
+  <canvas id="cursor-trail-canvas"></canvas>
   <canvas id="confetti-canvas"></canvas>
 
   <!-- Interactive custom mouse cursor -->
@@ -611,15 +667,78 @@ function renderCrazyKeyPage(key) {
     const wrapper = document.getElementById('cardWrapper');
     const orb1 = document.getElementById('orb1');
     const orb2 = document.getElementById('orb2');
+    const orb3 = document.getElementById('orb3');
     const cursor = document.getElementById('customCursor');
     const cursorDot = document.getElementById('customCursorDot');
 
-    // High precision mouse tracking for 3D card tilt & dual orb lighting
+    // WARP STARFIELD SPEED EFFECT
+    const wCanvas = document.getElementById('warp-canvas');
+    const wCtx = wCanvas.getContext('2d');
+    function resizeWarp() {
+      wCanvas.width = window.innerWidth;
+      wCanvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeWarp);
+    resizeWarp();
+
+    const numStars = 180;
+    const stars = [];
+    for (let i = 0; i < numStars; i++) {
+      stars.push({
+        x: (Math.random() - 0.5) * wCanvas.width * 2,
+        y: (Math.random() - 0.5) * wCanvas.height * 2,
+        z: Math.random() * wCanvas.width
+      });
+    }
+
+    function renderWarp() {
+      wCtx.fillStyle = 'rgba(3, 3, 6, 0.25)';
+      wCtx.fillRect(0, 0, wCanvas.width, wCanvas.height);
+      const cx = wCanvas.width / 2;
+      const cy = wCanvas.height / 2;
+
+      for (let s of stars) {
+        s.z -= 4;
+        if (s.z <= 0) {
+          s.z = wCanvas.width;
+          s.x = (Math.random() - 0.5) * wCanvas.width * 2;
+          s.y = (Math.random() - 0.5) * wCanvas.height * 2;
+        }
+
+        const k = 250 / s.z;
+        const px = s.x * k + cx;
+        const py = s.y * k + cy;
+
+        if (px >= 0 && px < wCanvas.width && py >= 0 && py < wCanvas.height) {
+          const size = (1 - s.z / wCanvas.width) * 3;
+          wCtx.beginPath();
+          wCtx.fillStyle = '#ff2a7a';
+          wCtx.arc(px, py, size, 0, Math.PI * 2);
+          wCtx.fill();
+        }
+      }
+      requestAnimationFrame(renderWarp);
+    }
+    renderWarp();
+
+    // DYNAMIC NEON MOUSE TRAIL EFFECT
+    const tCanvas = document.getElementById('cursor-trail-canvas');
+    const tCtx = tCanvas.getContext('2d');
+    function resizeTrail() {
+      tCanvas.width = window.innerWidth;
+      tCanvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeTrail);
+    resizeTrail();
+
+    let mouseTrail = [];
     document.addEventListener('mousemove', (e) => {
       const { clientX: x, clientY: y } = e;
       const { innerWidth: w, innerHeight: h } = window;
 
-      // Update custom cursor
+      mouseTrail.push({ x, y, alpha: 1, radius: 8 });
+
+      // Custom Cursor
       cursor.style.left = x + 'px';
       cursor.style.top = y + 'px';
       cursorDot.style.left = x + 'px';
@@ -628,12 +747,32 @@ function renderCrazyKeyPage(key) {
       // 3D Parallax Tilt
       const normX = (x - w / 2) / (w / 2);
       const normY = (y - h / 2) / (h / 2);
-      wrapper.style.transform = 'rotateY(' + (normX * 18) + 'deg) rotateX(' + (-normY * 18) + 'deg)';
+      wrapper.style.transform = 'rotateY(' + (normX * 22) + 'deg) rotateX(' + (-normY * 22) + 'deg)';
 
-      // Multi-layer dynamic lighting
-      orb1.style.transform = 'translate(' + (x - 275) + 'px, ' + (y - 275) + 'px)';
-      orb2.style.transform = 'translate(' + (w - x - 225) + 'px, ' + (h - y - 225) + 'px)';
+      // 3 Orb Lighting
+      orb1.style.transform = 'translate(' + (x - 300) + 'px, ' + (y - 300) + 'px)';
+      orb2.style.transform = 'translate(' + (w - x - 250) + 'px, ' + (h - y - 250) + 'px)';
+      orb3.style.transform = 'translate(' + (x / 2 - 225) + 'px, ' + (y / 2 - 225) + 'px)';
     });
+
+    function renderMouseTrail() {
+      tCtx.clearRect(0, 0, tCanvas.width, tCanvas.height);
+      for (let i = mouseTrail.length - 1; i >= 0; i--) {
+        const pt = mouseTrail[i];
+        tCtx.beginPath();
+        tCtx.arc(pt.x, pt.y, pt.radius, 0, Math.PI * 2);
+        tCtx.fillStyle = 'rgba(255, 42, 122, ' + pt.alpha + ')';
+        tCtx.shadowColor = '#00f2fe';
+        tCtx.shadowBlur = 10;
+        tCtx.fill();
+
+        pt.alpha -= 0.04;
+        pt.radius = Math.max(0, pt.radius - 0.25);
+        if (pt.alpha <= 0) mouseTrail.splice(i, 1);
+      }
+      requestAnimationFrame(renderMouseTrail);
+    }
+    renderMouseTrail();
 
     document.addEventListener('mouseleave', () => {
       wrapper.style.transform = 'rotateY(0deg) rotateX(0deg)';
@@ -648,16 +787,16 @@ function renderCrazyKeyPage(key) {
     // Expand cursor over interactive elements
     document.querySelectorAll('button, .key-box-3d, .cmd-box').forEach(el => {
       el.addEventListener('mouseenter', () => {
-        cursor.style.width = '55px';
-        cursor.style.height = '55px';
+        cursor.style.width = '60px';
+        cursor.style.height = '60px';
         cursor.style.borderColor = '#00f2fe';
-        cursor.style.boxShadow = '0 0 20px #00f2fe';
+        cursor.style.boxShadow = '0 0 25px #00f2fe';
       });
       el.addEventListener('mouseleave', () => {
-        cursor.style.width = '32px';
-        cursor.style.height = '32px';
+        cursor.style.width = '34px';
+        cursor.style.height = '34px';
         cursor.style.borderColor = '#ff2a7a';
-        cursor.style.boxShadow = '0 0 15px rgba(224, 17, 95, 0.65)';
+        cursor.style.boxShadow = '0 0 20px rgba(224, 17, 95, 0.7)';
       });
     });
 
@@ -671,13 +810,13 @@ function renderCrazyKeyPage(key) {
     window.addEventListener('resize', resizeMatrix);
     resizeMatrix();
 
-    const chars = '0123456789ABCDEFMOMMYDEOBΨλπΣΩ';
-    const fontSize = 14;
+    const chars = '0123456789ABCDEFMOMMYDEOBΨλπΣΩ01';
+    const fontSize = 15;
     const columns = Math.floor(mCanvas.width / fontSize);
     const drops = Array(columns).fill(1);
 
     function drawMatrix() {
-      mCtx.fillStyle = 'rgba(4, 4, 7, 0.08)';
+      mCtx.fillStyle = 'rgba(3, 3, 6, 0.08)';
       mCtx.fillRect(0, 0, mCanvas.width, mCanvas.height);
       mCtx.fillStyle = '#e0115f';
       mCtx.font = fontSize + 'px monospace';
@@ -691,7 +830,7 @@ function renderCrazyKeyPage(key) {
         drops[i]++;
       }
     }
-    setInterval(drawMatrix, 35);
+    setInterval(drawMatrix, 32);
 
     // FLOATING CONNECTED CONSTELLATION PARTICLES
     const pCanvas = document.getElementById('particles-canvas');
@@ -704,13 +843,13 @@ function renderCrazyKeyPage(key) {
     resizeParticles();
 
     const particleList = [];
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 55; i++) {
       particleList.push({
         x: Math.random() * pCanvas.width,
         y: Math.random() * pCanvas.height,
-        vx: (Math.random() - 0.5) * 1.2,
-        vy: (Math.random() - 0.5) * 1.2,
-        radius: Math.random() * 2 + 1
+        vx: (Math.random() - 0.5) * 1.4,
+        vy: (Math.random() - 0.5) * 1.4,
+        radius: Math.random() * 2.2 + 1
       });
     }
 
@@ -723,10 +862,10 @@ function renderCrazyKeyPage(key) {
           const dx = particleList[i].x - particleList[j].x;
           const dy = particleList[i].y - particleList[j].y;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 110) {
+          if (dist < 120) {
             pCtx.beginPath();
-            pCtx.strokeStyle = 'rgba(224, 17, 95, ' + (0.35 * (1 - dist / 110)) + ')';
-            pCtx.lineWidth = 0.8;
+            pCtx.strokeStyle = 'rgba(224, 17, 95, ' + (0.4 * (1 - dist / 120)) + ')';
+            pCtx.lineWidth = 0.9;
             pCtx.moveTo(particleList[i].x, particleList[i].y);
             pCtx.lineTo(particleList[j].x, particleList[j].y);
             pCtx.stroke();
@@ -765,20 +904,20 @@ function renderCrazyKeyPage(key) {
 
     let sparks = [];
     function explodeSparks(originX, originY) {
-      const colors = ['#e0115f', '#ff2a7a', '#00f2fe', '#ffffff', '#ffd700'];
-      for (let i = 0; i < 90; i++) {
+      const colors = ['#e0115f', '#ff2a7a', '#00f2fe', '#ffffff', '#ffd700', '#9d4edd'];
+      for (let i = 0; i < 110; i++) {
         const angle = Math.random() * Math.PI * 2;
-        const speed = Math.random() * 18 + 4;
+        const speed = Math.random() * 22 + 5;
         sparks.push({
           x: originX,
           y: originY,
           vx: Math.cos(angle) * speed,
           vy: Math.sin(angle) * speed,
-          size: Math.random() * 5 + 3,
+          size: Math.random() * 6 + 3,
           color: colors[Math.floor(Math.random() * colors.length)],
           alpha: 1,
-          decay: Math.random() * 0.02 + 0.015,
-          gravity: 0.3
+          decay: Math.random() * 0.02 + 0.012,
+          gravity: 0.35
         });
       }
     }
@@ -824,8 +963,8 @@ function renderCrazyKeyPage(key) {
         explodeSparks(window.innerWidth / 2, window.innerHeight / 2);
 
         // Screen flash effect
-        document.body.style.filter = 'brightness(1.25)';
-        setTimeout(() => { document.body.style.filter = 'none'; }, 150);
+        document.body.style.filter = 'brightness(1.35)';
+        setTimeout(() => { document.body.style.filter = 'none'; }, 180);
 
         setTimeout(() => {
           label.innerText = 'Copy Redeem Command';
