@@ -40,8 +40,15 @@ async function verifyLinkvertiseHash(hash, token = process.env.LINKVERTISE_ANTI_
 }
 
 function getLinkvertiseUrl(userId) {
+  if (process.env.LINKVERTISE_URL && process.env.LINKVERTISE_URL.trim()) {
+    const base = process.env.LINKVERTISE_URL.trim();
+    const separator = base.includes('?') ? '&' : '?';
+    return `${base}${separator}userId=${userId}`;
+  }
+
   const pubId = process.env.LINKVERTISE_USER_ID || '10452071';
-  return `https://linkvertise.com/${pubId}/mommydeob-key?o=sharing&userId=${userId}`;
+  const slug = process.env.LINKVERTISE_KEY_SLUG || 'mommydeob-key';
+  return `https://linkvertise.com/${pubId}/${slug}?o=sharing&userId=${userId}`;
 }
 
 module.exports = {
