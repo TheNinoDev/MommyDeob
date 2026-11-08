@@ -29,8 +29,17 @@ const {
 
 const { handleDeobSelectMenu } = require('./features/deobfInteractive');
 const { container, replyError, V2_FLAG, ACCENT_COLOR } = require('./utils/discordComponents');
+const { startWebServer } = require('./services/webServer');
 
 const PREFIXES = ['.', '/'];
+
+// Start HTTP server on port specified by Pterodactyl/Hosting environment or default 3000
+const WEB_PORT = parseInt(process.env.PORT || process.env.SERVER_PORT || '3000', 10);
+try {
+  startWebServer(WEB_PORT);
+} catch (err) {
+  console.error('[MommyDeob] Could not start web server:', err.message);
+}
 
 const client = new Client({
   intents: [

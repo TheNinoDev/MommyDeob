@@ -1,14 +1,17 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { PwfAuth } = require('./pwfauth');
 const { verifyLinkvertiseHash, getLinkvertiseUrl } = require('./linkvertise');
 
 const DB_PATH = path.join(__dirname, '..', '..', 'data', 'users.json');
+const KEYS_PATH = path.join(__dirname, '..', '..', 'data', 'generated_keys.json');
 
 class KeyManager {
   constructor() {
     this.auth = new PwfAuth(process.env.PWFAUTH_APP_SECRET || 'dd4192f6404e531b9fb644e2c840b31a5f9d67e452317c9706817f62e6588c2f');
     this.users = {};
+    this.generatedKeys = {};
     this.load();
   }
 
@@ -23,6 +26,17 @@ class KeyManager {
       console.error('[KeyManager] Failed to load users database:', e);
       this.users = {};
     }
+
+    try {
+      if (fs.existsSync(KEYS_PATH)) {
+        this.generatedKeys = JSON.parse(fs.readFileSync(KEYS_PATH, 'utf8'));
+      } else {
+        this.saveKeys();
+      }
+    } catch (e) {
+      console.error('[KeyManager] Failed to load generated keys database:', e);
+      this.generatedKeys = {};
+    }
   }
 
   save() {
@@ -32,6 +46,59 @@ class KeyManager {
     } catch (e) {
       console.error('[KeyManager] Failed to save users database:', e);
     }
+  }
+
+  saveKeys() {
+    try {
+      fs.mkdirSync(path.dirname(KEYS_PATH), { recursive: true });
+      fs.writeFileSync(KEYS_PATH, JSON.stringify(this.generatedKeys, null, 2), 'utf8');
+    } catch (e) {
+      console.error('[KeyManager] Failed to save keys database:', e);
+    }
+  }
+
+  // Generate a cryptographically random one-time key (or issue one associated with a hash/user)
+  createOneTimeKey(note = 'linkvertise_reward') {
+    const randomHex = crypto.randomBytes(6).toString('hex').toUpperCase();
+    const key = `MOMMY-${randomHex.slice(0, 4)}-${randomHex.slice(4, 8)}-${randomHex.slice(8, 12)}`;
+    
+    this.generatedKeys[key] = {
+      created: Date.now(),
+      used: false,
+      usedBy: null,
+      usedAt: null,
+      note
+    };
+    this.saveKeys();
+    return key;
+  }
+
+  // Claim or get existing key for a specific Linkvertise hash
+  getOrCreateKeyForHash(hash) {
+    if (!hash || typeof hash !== 'string') return null;
+    const cleanHash = hash.trim();
+
+    // Check if this hash was already assigned a key
+    for (const [k, data] of Object.entries(this.generatedKeys)) {
+      if (data.hash === cleanHash) {
+        return { key: k, used: data.used };
+      }
+    }
+
+    // Generate new key bound to this hash
+    const randomHex = crypto.randomBytes(6).toString('hex').toUpperCase();
+    const key = `MOMMY-${randomHex.slice(0, 4)}-${randomHex.slice(4, 8)}-${randomHex.slice(8, 12)}`;
+    
+    this.generatedKeys[key] = {
+      created: Date.now(),
+      hash: cleanHash,
+      used: false,
+      usedBy: null,
+      usedAt: null,
+      note: 'hash_claim'
+    };
+    this.saveKeys();
+    return { key, used: false };
   }
 
   getKeyUrl(userId) {
@@ -77,7 +144,39 @@ class KeyManager {
     const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
     const now = Date.now();
 
-    // 1. Try Linkvertise Anti-Bypass verification first
+    // 1. Check generated one-time key (MOMMY-XXXX-XXXX-XXXX)
+    const upperKey = clean.toUpperCase();
+    if (this.generatedKeys[upperKey]) {
+      const keyData = this.generatedKeys[upperKey];
+      if (keyData.used) {
+        throw new Error('This key has already been redeemed! Stop trying to reuse old garbage.');
+      }
+
+      keyData.used = true;
+      keyData.usedBy = userId;
+      keyData.usedAt = now;
+      this.saveKeys();
+
+      const expiresAt = now + SEVEN_DAYS_MS;
+      this.users[String(userId)] = {
+        key: upperKey,
+        type: 'one_time_key',
+        hwid: `discord_${userId}`,
+        redeemedAt: now,
+        expiresAt
+      };
+      this.save();
+
+      return {
+        success: true,
+        method: 'Mommy One-Time Key',
+        message: 'Key successfully redeemed! Granted 7 days of mommy access.',
+        daysRemaining: 7,
+        expiresAt: new Date(expiresAt).toUTCString()
+      };
+    }
+
+    // 2. Try Linkvertise Anti-Bypass verification
     const linkvertiseResult = await verifyLinkvertiseHash(clean);
     if (linkvertiseResult.valid) {
       const expiresAt = now + SEVEN_DAYS_MS;
@@ -98,7 +197,7 @@ class KeyManager {
       };
     }
 
-    // 2. Fall back to PWFAuth license key check & login
+    // 3. Fall back to PWFAuth license key check & login
     const hwid = `discord_${userId}`;
     try {
       const res = await this.auth.login(clean, hwid);
