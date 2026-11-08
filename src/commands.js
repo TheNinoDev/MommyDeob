@@ -20,6 +20,7 @@ const { fetchScript, extractUrlFromLoadstring, extractLinksFromText } = require(
 const { uploadPaste } = require('./services/paste');
 const { bypassUrl, getSupportedSitesMerged } = require('./services/bypassService');
 const { keyManager } = require('./services/keyManager');
+const { taskManager } = require('./services/taskManager');
 const {
   container,
   errorContainer,
@@ -117,7 +118,10 @@ async function resolveScriptInput(messageOrContent) {
 
   // Handle Pastblox specially
   if (sourceText.includes('pasteblox.com')) {
-    const resolved = await resolvePastblox(sourceText);
+    // Pastblox includes VM deobfuscation and multi-step resolution, treat as heavy task
+    const resolved = await taskManager.enqueueHeavy(async () => {
+      return await resolvePastblox(sourceText);
+    });
     if (resolved.innerCode) {
       return {
         code: resolved.innerCode,
@@ -345,7 +349,10 @@ async function handleGetCommand(message) {
 
   try {
     await message.channel.sendTyping();
-    const fetched = await resolveScriptInput({ content: urlArg });
+    // Fast task: executed immediately ahead of any queued heavy deobfuscation
+    const fetched = await taskManager.enqueueFast(async () => {
+      return await resolveScriptInput({ content: urlArg });
+    });
 
     // Always return fetched scripts as .lua file attachment
     const file = new AttachmentBuilder(Buffer.from(fetched.code, 'utf8'), { name: fetched.name || 'fetched.lua' });
@@ -381,7 +388,10 @@ async function handleBypassCommand(message) {
   try {
     await message.channel.sendTyping();
 
-    const result = await bypassUrl(urlArg);
+    // Fast task: jump queue in front of heavy tasks
+    const result = await taskManager.enqueueFast(async () => {
+      return await bypassUrl(urlArg);
+    });
 
     if (result.success) {
       const row = new ActionRowBuilder().addComponents(
