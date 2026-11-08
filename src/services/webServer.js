@@ -1,6 +1,6 @@
 const http = require('http');
 const { keyManager } = require('./keyManager');
-const { verifyLinkvertiseHash } = require('./linkvertise');
+const { verifyLinkvertiseHash, getSession, saveSessions } = require('./linkvertise');
 
 function renderErrorPage(title, message, help) {
   const accent = '#e0115f';
@@ -984,11 +984,22 @@ function startWebServer(port = 3000) {
       const parsed = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
       const pathname = parsed.pathname;
 
-      if (pathname === '/' || pathname === '/key') {
-        const hash = parsed.searchParams.get('hash');
+      if (pathname === '/callback' || pathname === '/' || pathname === '/key') {
+        let sessionId = parsed.searchParams.get('session');
+        let hash = parsed.searchParams.get('hash');
 
-        // STRICT SECURITY: Must provide a hash to receive a key
-        if (!hash || !hash.trim()) {
+        // Defensive query extraction in case Linkvertise malformed the query string
+        if (!sessionId) {
+          const sMatch = req.url.match(/[?&]session=([a-f0-9]{24,64})/i);
+          if (sMatch) sessionId = sMatch[1];
+        }
+        if (!hash) {
+          const hMatch = req.url.match(/[?&]hash=([a-f0-9]{64})/i);
+          if (hMatch) hash = hMatch[1];
+        }
+
+        // 1. STRICT SECURITY: Reject direct access without session and anti-bypass hash
+        if (!sessionId || !sessionId.trim() || !hash || !hash.trim()) {
           const html = renderErrorPage(
             'Direct Access Forbidden',
             'You cannot obtain a key by opening this URL directly, skid. You must finish the Linkvertise checkpoint from Discord (`.getkey`).',
@@ -998,29 +1009,85 @@ function startWebServer(port = 3000) {
           return res.end(html);
         }
 
+        const cleanSessionId = sessionId.trim();
         const cleanHash = hash.trim();
 
-        // Check if this hash has ALREADY been issued a key previously
-        // (Allows users to refresh the page without breaking their key)
-        const existingClaim = keyManager.getOrCreateKeyForHash(cleanHash);
-        
-        // If it's a completely new hash, verify with Linkvertise Anti-Bypass API
-        if (!existingClaim.alreadyExisted) {
-          const verifyResult = await verifyLinkvertiseHash(cleanHash);
-          if (!verifyResult.valid) {
-            // Note: If Linkvertise is in test mode or rejects, reject the visitor
-            console.warn(`[WebServer] Rejected invalid hash: ${cleanHash} - ${verifyResult.message}`);
-            const html = renderErrorPage(
-              'Invalid or Bypassed Hash',
-              'Linkvertise anti-bypass verification failed. Stop using bypass extensions or stale hashes.',
-              'Get a new link via .getkey'
-            );
-            res.writeHead(403, { 'Content-Type': 'text/html; charset=utf-8' });
-            return res.end(html);
-          }
+        // 2. Verify that the session exists and is active
+        const session = getSession(cleanSessionId);
+        if (!session) {
+          console.warn(`[WebServer] Access rejected: unknown session ${cleanSessionId}`);
+          const html = renderErrorPage(
+            'Invalid Session',
+            'The checkpoint session was not found or has expired. Generate a new link in Discord using `.getkey`.',
+            'Run .getkey in Discord'
+          );
+          res.writeHead(403, { 'Content-Type': 'text/html; charset=utf-8' });
+          return res.end(html);
         }
 
-        const html = renderCrazyKeyPage(existingClaim.key);
+        if (session.expiresAt && Date.now() > session.expiresAt) {
+          console.warn(`[WebServer] Access rejected: expired session ${cleanSessionId}`);
+          const html = renderErrorPage(
+            'Session Expired',
+            'This checkpoint session has expired. Links are valid for 1 hour from creation. Run `.getkey` in Discord for a fresh link.',
+            'Run .getkey in Discord'
+          );
+          res.writeHead(403, { 'Content-Type': 'text/html; charset=utf-8' });
+          return res.end(html);
+        }
+
+        // 3. Atomicity check: Never allow the same session to be redeemed twice
+        if (session.completed) {
+          // If the session was already successfully verified and redeemed, show the granted key without re-verifying
+          if (session.key) {
+            const html = renderCrazyKeyPage(session.key);
+            res.writeHead(200, {
+              'Content-Type': 'text/html; charset=utf-8',
+              'Cache-Control': 'no-store'
+            });
+            return res.end(html);
+          }
+
+          const html = renderErrorPage(
+            'Session Already Redeemed',
+            'This session has already been redeemed and cannot be processed again.',
+            'Run .getkey for a new link'
+          );
+          res.writeHead(403, { 'Content-Type': 'text/html; charset=utf-8' });
+          return res.end(html);
+        }
+
+        // 4. Immediately send POST request to Linkvertise Anti-Bypass API
+        // Hashes expire after ~10 seconds and are single-use
+        const verifyResult = await verifyLinkvertiseHash(cleanHash);
+        if (!verifyResult.valid) {
+          console.warn(`[WebServer] Anti-Bypass verification failed for session ${cleanSessionId}: ${verifyResult.message}`);
+          const html = renderErrorPage(
+            'Anti-Bypass Verification Failed',
+            `Linkvertise anti-bypass verification rejected: ${verifyResult.message}. Bypass extensions, stale hashes (>10s window), and fake hashes are blocked.`,
+            'Run .getkey in Discord for a fresh link'
+          );
+          res.writeHead(403, { 'Content-Type': 'text/html; charset=utf-8' });
+          return res.end(html);
+        }
+
+        // 5. Mark the session as completed atomically
+        session.completed = true;
+        session.completedAt = Date.now();
+        session.hash = cleanHash;
+
+        // 6. Generate one-time key and automatically grant user access
+        const key = keyManager.createOneTimeKey(`session_${cleanSessionId}`);
+        session.key = key;
+        saveSessions();
+
+        if (session.userId) {
+          keyManager.grantUserAccess(session.userId, key, 7, 'Linkvertise Anti-Bypass Dynamic Link');
+        }
+
+        console.log(`[WebServer] Successfully verified Linkvertise hash for user ${session.userId}, issued ${key}`);
+
+        const html = renderCrazyKeyPage(key);
         res.writeHead(200, {
           'Content-Type': 'text/html; charset=utf-8',
           'Cache-Control': 'no-store'

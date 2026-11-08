@@ -101,10 +101,32 @@ class KeyManager {
     return { key, used: false, alreadyExisted: false };
   }
 
-  getKeyUrl(userId) {
-    if (process.env.KEY_GENERATOR_URL) {
-      return `${process.env.KEY_GENERATOR_URL}?user=${userId}`;
+  grantUserAccess(userId, key, days = 7, method = 'Linkvertise Anti-Bypass') {
+    const now = Date.now();
+    const durationMs = days * 24 * 60 * 60 * 1000;
+    const expiresAt = now + durationMs;
+
+    this.users[String(userId)] = {
+      key,
+      type: 'linkvertise_checkpoint',
+      hwid: `discord_${userId}`,
+      redeemedAt: now,
+      expiresAt,
+      method
+    };
+    this.save();
+
+    if (key && this.generatedKeys[key]) {
+      this.generatedKeys[key].used = true;
+      this.generatedKeys[key].usedBy = String(userId);
+      this.generatedKeys[key].usedAt = now;
+      this.saveKeys();
     }
+
+    return { expiresAt, daysRemaining: days };
+  }
+
+  getKeyUrl(userId) {
     return getLinkvertiseUrl(userId);
   }
 
@@ -149,11 +171,22 @@ class KeyManager {
     if (this.generatedKeys[upperKey]) {
       const keyData = this.generatedKeys[upperKey];
       if (keyData.used) {
+        if (keyData.usedBy && String(keyData.usedBy) === String(userId) && this.users[String(userId)] && this.users[String(userId)].expiresAt > now) {
+          const userRec = this.users[String(userId)];
+          const daysRemaining = Math.ceil((userRec.expiresAt - now) / (1000 * 60 * 60 * 24));
+          return {
+            success: true,
+            method: 'Mommy One-Time Key (Active)',
+            message: 'License is already activated on your account.',
+            daysRemaining,
+            expiresAt: new Date(userRec.expiresAt).toUTCString()
+          };
+        }
         throw new Error('This key has already been redeemed! Stop trying to reuse old garbage.');
       }
 
       keyData.used = true;
-      keyData.usedBy = userId;
+      keyData.usedBy = String(userId);
       keyData.usedAt = now;
       this.saveKeys();
 
