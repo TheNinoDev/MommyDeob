@@ -19,6 +19,9 @@ function renderCrazyKeyPage(key) {
   </style>
 </head>
 <body>
+  <!-- Background Music Audio Element (song.mp3) -->
+  <audio id="bgmAudio" loop preload="auto" src="/song.mp3"></audio>
+
   <!-- Fullscreen Background Canvas VFX Layers -->
   <canvas id="warp-canvas"></canvas>
   <div class="cyber-grid-floor"></div>
@@ -59,7 +62,7 @@ function renderCrazyKeyPage(key) {
     <div class="radar-blip"></div>
   </div>
 
-  <!-- Top Cyber HUD Telemetry Bar -->
+  <!-- Top Cyber HUD Telemetry & song.mp3 Music Player Bar -->
   <div class="cyber-hud-top">
     <div class="hud-left">
       <div class="hud-chip">
@@ -69,18 +72,29 @@ function renderCrazyKeyPage(key) {
       <div class="hud-chip">
         <span id="liveClock">TIME: --:--:-- UTC</span>
       </div>
-      <div class="hud-chip">
-        <div class="audio-eq">
-          <div class="eq-bar"></div>
-          <div class="eq-bar"></div>
-          <div class="eq-bar"></div>
-          <div class="eq-bar"></div>
+
+      <!-- Cyber Music Player Widget -->
+      <div class="hud-chip music-player-deck">
+        <button class="music-ctrl-btn" id="musicPlayBtn" title="Play / Pause song.mp3">▶ PLAY</button>
+        <button class="music-ctrl-btn" id="musicStopBtn" title="Stop song.mp3">⏹</button>
+        <div class="music-track-info">
+          <span class="music-track-name">song.mp3</span>
+          <div class="audio-eq" id="musicEq">
+            <div class="eq-bar"></div>
+            <div class="eq-bar"></div>
+            <div class="eq-bar"></div>
+            <div class="eq-bar"></div>
+          </div>
+        </div>
+        <div class="music-vol-wrap">
+          <span class="vol-icon">VOL</span>
+          <input type="range" id="musicVolumeSlider" min="0" max="100" value="70" class="cyber-vol-slider" title="Change loudness">
+          <span id="volPercent" class="vol-num">70%</span>
         </div>
       </div>
     </div>
     <div class="hud-right">
       <button class="hud-action-btn" id="hyperToggle">WARP: NORMAL</button>
-      <button class="hud-action-btn" id="bgmToggle">BGM: OFF</button>
       <button class="hud-action-btn" id="audioToggle">SFX: ON</button>
       <div class="hud-chip">
         <span>FPS: <span id="fpsCounter" style="color:#00f0ff">60</span></span>
@@ -95,8 +109,10 @@ function renderCrazyKeyPage(key) {
       <div class="guilloche-bg"></div>
       <div class="holo-foil-overlay" id="holoFoil"></div>
       <div class="laser-scanner"></div>
-      <div class="notch-top"></div>
-      <div class="notch-bottom"></div>
+
+      <!-- Aqua Cutout Notches & Divider Dots (Top and Bottom) -->
+      <div class="notch-top" title="Aqua Notch Top"></div>
+      <div class="notch-bottom" title="Aqua Notch Bottom"></div>
       <div class="perforation-divider"></div>
 
       <!-- Main Ticket Body -->
@@ -144,7 +160,7 @@ function renderCrazyKeyPage(key) {
           <span>${redeemCommand}</span>
         </div>
 
-        <!-- Industrial Trigger Release Button -->
+        <!-- Industrial Trigger Release Button with Tactile Animation -->
         <button class="btn-redeem" id="copyBtn" onclick="copyRedeem(event)">
           <span id="btnLabel">EXECUTE REDEEM SYNC</span>
         </button>
@@ -166,8 +182,8 @@ function renderCrazyKeyPage(key) {
         </div>
       </div>
 
-      <!-- Perforated Tear-off Stub (Mechanical Precision) -->
-      <div class="ticket-stub" id="ticketStub" title="Click to tear or re-attach stub!">
+      <!-- Seamless Attached VIP Stub (No Breakout on Click) -->
+      <div class="ticket-stub" id="ticketStub">
         <div class="stub-tag">VIP STUB</div>
 
         <!-- Holographic VIP Seal -->
@@ -181,12 +197,12 @@ function renderCrazyKeyPage(key) {
           <div class="barcode-serial">MMY-${shortSerial}-7D-VIP</div>
         </div>
 
-        <!-- Stub Telemetry & Interactive Tear Hint -->
+        <!-- Stub Telemetry -->
         <div class="stub-meta">
           <div>NODE: CLOUD-MAIN</div>
           <div>GATE: DISCORD-BOT</div>
           <div>SEAT: 001-ALPHA</div>
-          <div class="stub-tear-hint">[ CLICK TO DETACH STUB ]</div>
+          <div style="color:var(--cyan); font-size:8px; margin-top:4px;">[ AUTH SECURED ]</div>
         </div>
       </div>
     </div>

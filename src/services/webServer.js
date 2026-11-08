@@ -285,6 +285,26 @@ function startWebServer(port = 3000) {
         }
       }
 
+      if (pathname === '/song.mp3' || pathname === '/assets/song.mp3') {
+        const songPath = path.join(__dirname, '..', '..', 'song.mp3');
+        const altSongPath = path.join(__dirname, '..', '..', 'assets', 'song.mp3');
+        const targetSong = fs.existsSync(songPath) ? songPath : (fs.existsSync(altSongPath) ? altSongPath : null);
+
+        if (targetSong) {
+          const stat = fs.statSync(targetSong);
+          res.writeHead(200, {
+            'Content-Type': 'audio/mpeg',
+            'Content-Length': stat.size,
+            'Accept-Ranges': 'bytes',
+            'Cache-Control': 'public, max-age=86400'
+          });
+          return fs.createReadStream(targetSong).pipe(res);
+        } else {
+          res.writeHead(404, { 'Content-Type': 'text/plain' });
+          return res.end('song.mp3 not found');
+        }
+      }
+
       if (pathname === '/health') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify({ status: 'ok', time: Date.now() }));

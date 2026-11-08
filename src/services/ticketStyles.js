@@ -12,7 +12,7 @@ const ticketStyles = `
     --carmine-glow: rgba(255, 0, 85, 0.55);
     
     --cyan: #00f0ff;
-    --cyan-glow: rgba(0, 240, 255, 0.55);
+    --cyan-glow: rgba(0, 240, 255, 0.65);
     
     --amber: #ffaa00;
     --amber-glow: rgba(255, 170, 0, 0.5);
@@ -51,6 +51,16 @@ const ticketStyles = `
   body.hyperdrive {
     --warp-speed: 28;
     filter: saturate(1.4) contrast(1.15);
+  }
+
+  /* BUTTON CLICK ANIMATIONS (Tactile, Mechanical Feedback) */
+  button, .btn-redeem, .hud-action-btn, .music-ctrl-btn {
+    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, filter 0.15s ease, background 0.2s ease;
+  }
+  button:active, .btn-redeem:active, .hud-action-btn:active, .music-ctrl-btn:active {
+    transform: scale(0.94) translateY(2px) !important;
+    filter: brightness(1.35) contrast(1.15) !important;
+    box-shadow: 0 0 25px var(--cyan), inset 0 0 15px rgba(255, 255, 255, 0.6) !important;
   }
 
   /* Fullscreen background canvases */
@@ -233,7 +243,47 @@ const ticketStyles = `
     box-shadow: 0 0 20px var(--carmine-glow);
   }
 
-  /* Audio Equalizer Widget */
+  /* =========================================================
+     CYBER MUSIC PLAYER WIDGET (song.mp3 Controller)
+     ========================================================= */
+  .music-player-deck {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-color: rgba(0, 240, 255, 0.35) !important;
+    box-shadow: 0 0 20px rgba(0, 240, 255, 0.15) !important;
+  }
+  .music-ctrl-btn {
+    cursor: pointer;
+    background: rgba(0, 240, 255, 0.12);
+    border: 1px solid var(--cyan);
+    color: var(--cyan);
+    padding: 4px 10px;
+    border-radius: 2px;
+    font-size: 9.5px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+  }
+  .music-ctrl-btn:hover {
+    background: var(--cyan);
+    color: #030407;
+    box-shadow: 0 0 18px var(--cyan-glow);
+  }
+  .music-track-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .music-track-name {
+    color: #fff;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+  }
   .audio-eq {
     display: flex;
     align-items: flex-end;
@@ -247,6 +297,58 @@ const ticketStyles = `
     height: 3px;
     box-shadow: 0 0 6px var(--cyan);
     transition: height 0.08s ease;
+  }
+
+  /* Volume slider */
+  .music-vol-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-left: 6px;
+    border-left: 1px solid rgba(255, 255, 255, 0.12);
+  }
+  .vol-icon {
+    font-size: 8.5px;
+    color: var(--text-tertiary);
+    font-weight: 700;
+  }
+  .cyber-vol-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 65px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  .cyber-vol-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--cyan);
+    cursor: pointer;
+    box-shadow: 0 0 10px var(--cyan);
+    transition: transform 0.1s ease;
+  }
+  .cyber-vol-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.3);
+  }
+  .cyber-vol-slider::-moz-range-thumb {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--cyan);
+    cursor: pointer;
+    box-shadow: 0 0 10px var(--cyan);
+  }
+  .vol-num {
+    font-size: 9px;
+    color: var(--cyan);
+    min-width: 28px;
+    text-align: right;
   }
 
   /* Cyber Radar Widget (Bottom Left) */
@@ -328,7 +430,7 @@ const ticketStyles = `
     border-radius: 4px;
   }
 
-  /* Precision Industrial Corner Reticles */
+  /* Corner Reticles */
   .ticket-container::before {
     content: '';
     position: absolute;
@@ -407,7 +509,9 @@ const ticketStyles = `
     100% { top: 100%; opacity: 0.15; }
   }
 
-  /* Physical Ticket Cutout Notches */
+  /* =========================================================
+     AQUA DOTS & CUTOUT NOTCHES (TOP & BOTTOM)
+     ========================================================= */
   .notch-top {
     position: absolute;
     top: -16px;
@@ -416,10 +520,23 @@ const ticketStyles = `
     height: 32px;
     background: var(--void);
     border-radius: 50%;
-    border-bottom: 1px solid var(--plate-border);
+    border-bottom: 2px solid var(--cyan);
+    box-shadow: 0 0 15px rgba(0, 240, 255, 0.6), inset 0 -6px 12px rgba(0, 0, 0, 0.9);
     z-index: 10;
-    box-shadow: inset 0 -6px 12px rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
+  .notch-top::after {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 10px var(--cyan);
+    margin-top: 10px;
+  }
+
   .notch-bottom {
     position: absolute;
     bottom: -16px;
@@ -428,9 +545,21 @@ const ticketStyles = `
     height: 32px;
     background: var(--void);
     border-radius: 50%;
-    border-top: 1px solid var(--plate-border);
+    border-top: 2px solid var(--cyan);
+    box-shadow: 0 0 15px rgba(0, 240, 255, 0.6), inset 0 6px 12px rgba(0, 0, 0, 0.9);
     z-index: 10;
-    box-shadow: inset 0 6px 12px rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .notch-bottom::after {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 10px var(--cyan);
+    margin-bottom: 10px;
   }
 
   .perforation-divider {
@@ -439,13 +568,14 @@ const ticketStyles = `
     bottom: 0;
     right: 247px;
     width: 2px;
-    border-right: 2px dashed rgba(255, 0, 85, 0.4);
+    border-right: 2px dashed rgba(0, 240, 255, 0.55);
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
     z-index: 9;
     pointer-events: none;
   }
 
   /* =========================================================
-     MAIN TICKET BODY (Deliberate Editorial Typography & Spacing)
+     MAIN TICKET BODY
      ========================================================= */
   .ticket-main {
     flex: 1;
@@ -534,9 +664,7 @@ const ticketStyles = `
     color: var(--text-tertiary);
   }
 
-  /* =========================================================
-     THE KEY VAULT (Recessed Architectural Chamber)
-     ========================================================= */
+  /* Recessed Key Vault */
   .key-box-3d {
     background: #07080d;
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -631,12 +759,8 @@ const ticketStyles = `
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .btn-redeem:hover {
-    transform: translateY(-1px);
     background: linear-gradient(135deg, #ff1a66 0%, #ff0055 100%);
     box-shadow: 0 0 45px rgba(255, 0, 85, 0.8), 0 15px 35px rgba(0, 0, 0, 0.8);
-  }
-  .btn-redeem:active {
-    transform: translateY(1px);
   }
   .ripple {
     position: absolute;
@@ -677,7 +801,7 @@ const ticketStyles = `
   }
 
   /* =========================================================
-     PERFORATED TEAR-OFF STUB (Mechanical Precision)
+     ATTACHED SEAMLESS VIP STUB (NO BREAKOUT/TEARING ON CLICK)
      ========================================================= */
   .ticket-stub {
     width: 248px;
@@ -690,39 +814,18 @@ const ticketStyles = `
     background: #07080c;
     z-index: 5;
     border-left: 1px solid rgba(255, 255, 255, 0.06);
-    transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s ease;
-    cursor: pointer;
+    /* Clean attached seamless styling - no detached transform on click */
+    transition: box-shadow 0.3s ease, border-color 0.3s ease;
   }
-
-  /* When torn off! */
-  .ticket-stub.torn {
-    transform: translateX(45px) rotate(7deg) translateY(12px);
-    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.95), 0 0 35px rgba(255, 0, 85, 0.6);
-    border: 1px dashed var(--carmine);
-    border-radius: 4px;
-  }
-  .ticket-stub.torn::before {
-    content: 'TORN // DETACHED';
-    position: absolute;
-    top: -20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: var(--carmine);
-    color: #fff;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 8.5px;
-    font-weight: 800;
-    padding: 3px 10px;
-    letter-spacing: 0.15em;
-    white-space: nowrap;
-    border-radius: 2px;
+  .ticket-stub:hover {
+    box-shadow: inset 0 0 25px rgba(0, 240, 255, 0.08);
   }
 
   .stub-tag {
     font-family: 'JetBrains Mono', monospace;
     font-size: 10px;
     letter-spacing: 0.25em;
-    color: var(--carmine);
+    color: var(--cyan);
     text-transform: uppercase;
     text-align: center;
     font-weight: 800;
@@ -797,17 +900,6 @@ const ticketStyles = `
     text-align: center;
     letter-spacing: 0.1em;
   }
-  .stub-tear-hint {
-    font-size: 8px;
-    color: var(--carmine);
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    font-family: 'JetBrains Mono', monospace;
-    margin-top: 6px;
-    animation: blinkHint 1.5s infinite;
-    font-weight: 700;
-  }
-  @keyframes blinkHint { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
 
   /* =========================================================
      HOLOGRAPHIC COMPANION CONSOLE (Tactical Cyberpod)
@@ -954,9 +1046,10 @@ const ticketStyles = `
   @media (max-width: 990px) {
     .scene-wrapper { flex-direction: column; align-items: center; }
     .ticket-container { flex-direction: column; width: 100%; }
-    .ticket-stub { width: 100%; border-left: none; border-top: 1px dashed rgba(255, 0, 85, 0.4); }
+    .ticket-stub { width: 100%; border-left: none; border-top: 1px dashed rgba(0, 240, 255, 0.4); }
     .perforation-divider, .notch-top, .notch-bottom { display: none; }
     .holo-companion-card { width: 100%; max-width: 420px; }
+    .music-player-deck { flex-wrap: wrap; }
   }
 `;
 

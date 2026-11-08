@@ -1,11 +1,9 @@
 function getTicketScripts(key, redeemCommand) {
   return `
-    // SYNTHESIZED WEB AUDIO ENGINE
+    // SYNTHESIZED WEB AUDIO & SFX ENGINE
     let sfxEnabled = true;
-    let bgmEnabled = false;
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     let audioCtx = null;
-    let bgmInterval = null;
 
     function getAudioCtx() {
       if (!audioCtx && AudioCtx) audioCtx = new AudioCtx();
@@ -51,26 +49,6 @@ function getTicketScripts(key, redeemCommand) {
       } catch (e) {}
     }
 
-    function playMagneticDock() {
-      if (!sfxEnabled) return;
-      try {
-        const ctx = getAudioCtx();
-        if (!ctx) return;
-        const now = ctx.currentTime;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(150, now);
-        osc.frequency.exponentialRampToValueAtTime(450, now + 0.12);
-        gain.gain.setValueAtTime(0.18, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(now);
-        osc.stop(now + 0.12);
-      } catch (e) {}
-    }
-
     function playVictoryChirp() {
       if (!sfxEnabled) return;
       try {
@@ -103,63 +81,92 @@ function getTicketScripts(key, redeemCommand) {
       } catch (e) {}
     }
 
-    // PROCEDURAL SYNTHWAVE BGM ARPEGGIATOR
-    const synthNotes = [220, 261.63, 329.63, 392, 440, 523.25, 659.25, 783.99];
-    let noteStep = 0;
-    function startBgm() {
-      if (bgmInterval) clearInterval(bgmInterval);
-      bgmInterval = setInterval(() => {
-        if (!bgmEnabled) return;
-        const ctx = getAudioCtx();
-        if (!ctx) return;
-        const freq = synthNotes[noteStep % synthNotes.length];
-        noteStep++;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        const filter = ctx.createBiquadFilter();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, ctx.currentTime);
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(1600, ctx.currentTime);
-        gain.gain.setValueAtTime(0.035, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.16);
-        osc.connect(filter);
-        filter.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.16);
+    // =========================================================
+    // song.mp3 BACKGROUND MUSIC PLAYER & VOLUME LOUDNESS CONTROLLER
+    // =========================================================
+    const bgm = document.getElementById('bgmAudio');
+    const playBtn = document.getElementById('musicPlayBtn');
+    const stopBtn = document.getElementById('musicStopBtn');
+    const volSlider = document.getElementById('musicVolumeSlider');
+    const volPercent = document.getElementById('volPercent');
+    const eqBars = document.querySelectorAll('#musicEq .eq-bar');
+    let eqInterval = null;
 
-        // Animate Equalizer bars
-        const eqBars = document.querySelectorAll('.eq-bar');
-        eqBars.forEach(b => {
-          b.style.height = (Math.random() * 12 + 3) + 'px';
-        });
-      }, 160);
+    if (bgm && volSlider) {
+      bgm.volume = parseFloat(volSlider.value) / 100;
     }
 
+    function animateEq(playing) {
+      if (playing) {
+        if (!eqInterval) {
+          eqInterval = setInterval(() => {
+            eqBars.forEach(bar => {
+              bar.style.height = (Math.random() * 10 + 2) + 'px';
+            });
+          }, 100);
+        }
+      } else {
+        if (eqInterval) {
+          clearInterval(eqInterval);
+          eqInterval = null;
+        }
+        eqBars.forEach(bar => bar.style.height = '3px');
+      }
+    }
+
+    if (playBtn && bgm) {
+      playBtn.addEventListener('click', () => {
+        playBeep(700, 'sine', 0.05);
+        if (bgm.paused) {
+          bgm.play().then(() => {
+            playBtn.innerText = '❚❚ PAUSE';
+            playBtn.style.background = 'var(--cyan)';
+            playBtn.style.color = '#030407';
+            animateEq(true);
+          }).catch(err => {
+            console.warn('[MusicPlayer] Could not play song.mp3 yet:', err.message);
+            playBtn.innerText = 'SONG NOT LOADED';
+            setTimeout(() => { playBtn.innerText = '▶ PLAY'; }, 2500);
+          });
+        } else {
+          bgm.pause();
+          playBtn.innerText = '▶ PLAY';
+          playBtn.style.background = '';
+          playBtn.style.color = '';
+          animateEq(false);
+        }
+      });
+    }
+
+    if (stopBtn && bgm) {
+      stopBtn.addEventListener('click', () => {
+        playBeep(500, 'sine', 0.05);
+        bgm.pause();
+        bgm.currentTime = 0;
+        if (playBtn) {
+          playBtn.innerText = '▶ PLAY';
+          playBtn.style.background = '';
+          playBtn.style.color = '';
+        }
+        animateEq(false);
+      });
+    }
+
+    if (volSlider && bgm) {
+      volSlider.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value, 10);
+        bgm.volume = val / 100;
+        if (volPercent) volPercent.innerText = val + '%';
+      });
+    }
+
+    // HUD TOGGLES
     document.getElementById('audioToggle').addEventListener('click', () => {
       sfxEnabled = !sfxEnabled;
       document.getElementById('audioToggle').innerText = sfxEnabled ? 'SFX: ON' : 'SFX: MUTED';
       playBeep(sfxEnabled ? 900 : 350, 'sine', 0.1);
     });
 
-    document.getElementById('bgmToggle').addEventListener('click', () => {
-      bgmEnabled = !bgmEnabled;
-      const btn = document.getElementById('bgmToggle');
-      if (bgmEnabled) {
-        btn.classList.add('active');
-        btn.innerText = 'BGM: ON ♫';
-        startBgm();
-      } else {
-        btn.classList.remove('active');
-        btn.innerText = 'BGM: OFF';
-        if (bgmInterval) clearInterval(bgmInterval);
-        document.querySelectorAll('.eq-bar').forEach(b => b.style.height = '4px');
-      }
-      playBeep(850, 'triangle', 0.08);
-    });
-
-    // HYPERDRIVE WARP MODE TOGGLE
     let hyperdrive = false;
     document.getElementById('hyperToggle').addEventListener('click', () => {
       hyperdrive = !hyperdrive;
@@ -174,22 +181,6 @@ function getTicketScripts(key, redeemCommand) {
         btn.innerText = 'WARP: NORMAL';
         document.body.classList.remove('hyperdrive');
         playBeep(400, 'sine', 0.1);
-      }
-    });
-
-    // INTERACTIVE TICKET TEAR PHYSICS
-    const stub = document.getElementById('ticketStub');
-    let isTorn = false;
-    stub.addEventListener('click', (e) => {
-      isTorn = !isTorn;
-      if (isTorn) {
-        stub.classList.add('torn');
-        playLaserZap();
-        explodeSparks(e.clientX, e.clientY);
-      } else {
-        stub.classList.remove('torn');
-        playMagneticDock();
-        explodeSparks(e.clientX, e.clientY);
       }
     });
 
@@ -208,7 +199,7 @@ function getTicketScripts(key, redeemCommand) {
         radius: 10,
         maxRadius: 180,
         alpha: 0.8,
-        color: Math.random() > 0.5 ? '#ff2a7a' : '#00f2fe'
+        color: Math.random() > 0.5 ? '#ff0055' : '#00f0ff'
       });
     });
 
@@ -292,19 +283,19 @@ function getTicketScripts(key, redeemCommand) {
       orb3.style.transform = 'translate(' + (x / 2 - 225) + 'px, ' + (y / 2 - 225) + 'px)';
     });
 
-    document.querySelectorAll('button, .key-box-3d, .cmd-box, .holo-companion-card, .ticket-stub').forEach(el => {
+    document.querySelectorAll('button, .key-box-3d, .cmd-box, .holo-companion-card').forEach(el => {
       el.addEventListener('mouseenter', () => {
-        cursor.style.width = '55px';
-        cursor.style.height = '55px';
-        cursor.style.borderColor = '#00f2fe';
-        cursor.style.boxShadow = '0 0 25px #00f2fe';
+        cursor.style.width = '50px';
+        cursor.style.height = '50px';
+        cursor.style.borderColor = '#00f0ff';
+        cursor.style.boxShadow = '0 0 25px #00f0ff';
         playBeep(1000, 'sine', 0.03);
       });
       el.addEventListener('mouseleave', () => {
-        cursor.style.width = '32px';
-        cursor.style.height = '32px';
-        cursor.style.borderColor = '#ff2a7a';
-        cursor.style.boxShadow = '0 0 20px rgba(224, 17, 95, 0.8)';
+        cursor.style.width = '30px';
+        cursor.style.height = '30px';
+        cursor.style.borderColor = '#ff0055';
+        cursor.style.boxShadow = '0 0 15px rgba(255, 0, 85, 0.6)';
       });
     });
 
@@ -389,9 +380,9 @@ function getTicketScripts(key, redeemCommand) {
           const size = Math.max(1, (1 - s.z / wCanvas.width) * (hyperdrive ? 5 : 3));
           wCtx.beginPath();
           wCtx.arc(px, py, size, 0, Math.PI * 2);
-          wCtx.fillStyle = hyperdrive ? '#00f2fe' : '#ff2a7a';
+          wCtx.fillStyle = hyperdrive ? '#00f0ff' : '#ff0055';
           wCtx.shadowBlur = hyperdrive ? 12 : 6;
-          wCtx.shadowColor = hyperdrive ? '#ff2a7a' : '#00f2fe';
+          wCtx.shadowColor = hyperdrive ? '#ff0055' : '#00f0ff';
           wCtx.fill();
         }
       }
@@ -413,7 +404,7 @@ function getTicketScripts(key, redeemCommand) {
     function drawMatrix() {
       mCtx.fillStyle = 'rgba(2, 2, 5, 0.08)';
       mCtx.fillRect(0, 0, mCanvas.width, mCanvas.height);
-      mCtx.fillStyle = 'rgba(255, 42, 122, 0.7)';
+      mCtx.fillStyle = 'rgba(255, 0, 85, 0.65)';
       mCtx.font = '13px \"JetBrains Mono\"';
 
       for (let i = 0; i < drops.length; i++) {
@@ -435,7 +426,7 @@ function getTicketScripts(key, redeemCommand) {
 
     let sparks = [];
     function explodeSparks(originX, originY) {
-      const colors = ['#e0115f', '#ff2a7a', '#00f2fe', '#ffffff', '#ffd700', '#9d4edd'];
+      const colors = ['#ff0055', '#ff2a70', '#00f0ff', '#ffffff', '#ffaa00', '#9d4edd'];
       for (let i = 0; i < 130; i++) {
         const angle = Math.random() * Math.PI * 2;
         const speed = Math.random() * 25 + 6;
